@@ -1,59 +1,97 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SHS ADM Portal — Bago NHS</title><meta name="theme-color" content="#3b4250">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SHS ADM Portal — Bago NHS</title><meta name="theme-color" content="#14532d">
 <style>
-:root{--bg:#f2f2f0;--card:#fff;--ink:#2b2f36;--muted:#6b6f76;--brand:#3b4250;--line:#e3e2de;--ok:#46604f;--okbg:#e6ece7;--no:#8a3b3b;--nobg:#f3e6e6}
-*{box-sizing:border-box}body{margin:0;font-family:"Noto Sans",system-ui,-apple-system,"Segoe UI",Roboto,"DejaVu Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
-header{background:var(--brand);color:#f4f3f0;padding:26px 18px 58px;text-align:center}
-header .school{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8}header h1{margin:8px 0 4px;font-size:1.35rem;font-weight:600}header p{margin:2px 0;font-size:.9rem;opacity:.8}
-main{max-width:600px;margin:-38px auto 24px;padding:0 14px}.card{background:var(--card);border-radius:14px;box-shadow:0 4px 16px rgba(40,40,40,.08);padding:18px;margin-bottom:14px}
-label.f{font-weight:600;display:block;margin:8px 0 6px}input[type=text]{width:100%;font-size:1rem;padding:12px;border:2px solid #d8d7d2;border-radius:12px;font-family:inherit}
-h2.sec{font-size:1.05rem;margin:22px 4px 10px;color:var(--brand)}
-.q{font-weight:600;margin:0 0 10px}.opt{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;cursor:pointer}
-.opt input{transform:scale(1.2)}.right{background:var(--okbg);border-color:var(--ok)}.wrong{background:var(--nobg);border-color:var(--no)}
-.tag{font-size:.8rem;font-weight:700;padding:2px 8px;border-radius:99px}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.no{background:var(--nobg);color:var(--no)}
-.exp{margin-top:8px;font-size:.92rem;color:var(--muted)}button{width:100%;font-size:1.05rem;padding:14px;border:0;border-radius:12px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px}
-.score{text-align:center;border:3px solid var(--brand)}.score b{font-size:2.4rem;display:block}.score .row{font-size:1rem;margin:3px 0}.note{font-size:.8rem;color:var(--muted);text-align:center}.err{color:var(--no);font-size:.9rem}
-table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:10px}td{padding:3px 4px;border-top:1px solid var(--line)}td:last-child{text-align:right}
-select{width:100%;font-size:1rem;padding:12px;border:2px solid #d8d7d2;border-radius:12px;font-family:inherit;background:#fff}
-.ann{background:#fff7e0;border:2px solid #e0b84a;border-radius:14px;padding:16px;margin-bottom:14px;line-height:1.5}
-.ann h2{margin:0 0 6px;font-size:1.05rem;color:#7a5200}.ann ol{margin:8px 0;padding-left:20px}.ann li{margin:4px 0}
-.cd{background:#3b4250;color:#fff;border-radius:10px;padding:10px;text-align:center;font-weight:700;margin-top:10px}
-.closed{background:var(--nobg);color:var(--no);border-radius:14px;padding:22px;text-align:center;font-weight:700;font-size:1.1rem;margin-bottom:14px}
-.remind{background:#fff7e0;border-radius:8px;padding:8px;font-weight:700;color:#7a5200}
-
-.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{margin:0;background:#fff;color:var(--brand);border:2px solid var(--brand)}.tabs button.on{background:var(--brand);color:#fff}
-.task{border-left:5px solid var(--brand)}.task h3{margin:0 0 6px;font-size:1.05rem}.task .ins{white-space:pre-wrap;margin:8px 0}.dl{font-size:.85rem;color:var(--no);font-weight:600}
-.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.thumbs img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
-input[type=file]{width:100%;padding:10px;border:2px dashed #b9b8b2;border-radius:12px;background:#fafaf8;font-size:.95rem}
-.ok{color:var(--ok)}.wait{text-align:center;padding:22px;color:var(--muted)}
+:root{--bg:#f1f5f2;--card:#fff;--ink:#17201b;--muted:#5b6660;--brand:#166534;--brand2:#0f3d24;--acc:#f59e0b;--line:#dfe6e1;--ok:#15803d;--okbg:#dcfce7;--no:#b91c1c;--nobg:#fee2e2;--sel:#e7f5ec;--shadow:0 2px 10px rgba(15,61,36,.08)}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1511;--card:#17221c;--ink:#e8efe9;--muted:#9fb0a6;--line:#2a3a31;--sel:#173a26;--okbg:#14351f;--nobg:#3a1717;--ok:#4ade80;--no:#f87171;--shadow:none}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:17px}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+header{background:linear-gradient(160deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:18px 16px 54px;position:relative}
+.brandrow{display:flex;align-items:center;gap:12px;max-width:640px;margin:0 auto}
+.logo{width:48px;height:48px;flex:none;border-radius:50%;background:#fff;display:grid;place-items:center}
+.school{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;opacity:.85}header h1{margin:0;font-size:1.35rem;line-height:1.2}
+.banner{max-width:640px;margin:14px auto 0;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:10px 12px;font-size:.9rem;display:flex;gap:10px;align-items:center}
+.banner b{color:#fde68a}.hcd{display:none;max-width:640px;margin:10px auto 0;background:var(--acc);color:#3b2600;border-radius:999px;padding:8px 14px;font-weight:700;font-size:.92rem;text-align:center}
+main{max-width:640px;margin:-38px auto 16px;padding:0 12px;position:relative}
+.card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px;border:1px solid var(--line)}
+label.f{font-weight:700;display:block;margin:12px 0 6px;font-size:.95rem}label.f:first-child{margin-top:0}
+input[type=text],select{width:100%;font-size:1rem;min-height:52px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;font-family:inherit;background:var(--card);color:var(--ink);appearance:none;-webkit-appearance:none}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 22px) 50%,calc(100% - 16px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+input[type=text]:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(22,101,52,.18)}
+select:disabled{opacity:.6}
+h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;margin:20px 6px 8px;color:var(--brand)}
+@media (prefers-color-scheme:dark){h2.sec{color:#86efac}}
+.q{font-weight:700;margin:0 0 12px;font-size:1.02rem}
+.qn{display:inline-grid;place-items:center;min-width:30px;height:30px;border-radius:10px;background:var(--brand);color:#fff;font-size:.85rem;margin-right:8px;padding:0 6px}
+.opt{display:flex;gap:12px;align-items:center;min-height:52px;padding:10px 12px;border:2px solid var(--line);border-radius:14px;margin:8px 0;cursor:pointer;transition:background .15s,border-color .15s}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt .lt{flex:none;width:32px;height:32px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:.9rem;color:var(--muted)}
+.opt.sel,.opt:has(input:checked){background:var(--sel);border-color:var(--brand)}
+.opt.sel .lt,.opt:has(input:checked) .lt{background:var(--brand);border-color:var(--brand);color:#fff}
+.card.done{border-color:rgba(22,101,52,.35)}
+button{width:100%;min-height:54px;font-size:1.05rem;padding:14px;border:0;border-radius:16px;background:var(--brand);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(22,101,52,.25)}
+button:active{transform:scale(.98)}button:disabled{opacity:.75}
+button:disabled::before{content:"";width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.prog{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 2px;display:none}
+.prog .row{display:flex;justify-content:space-between;font-size:.85rem;font-weight:700;color:var(--muted);margin-bottom:4px}
+.prog .tr{height:10px;background:var(--line);border-radius:99px;overflow:hidden}.prog .fl{height:100%;width:0;background:linear-gradient(90deg,#22c55e,var(--brand));transition:width .25s}
+.score{text-align:center;background:linear-gradient(170deg,var(--sel),var(--card) 60%);border:2px solid var(--brand);position:relative;overflow:hidden}
+.score b{font-size:2.6rem;display:block;line-height:1.15}.score .row{font-size:1rem;margin:3px 0}
+.score #st b{font-size:1.05rem;display:inline}
+.score .cel{font-size:2.2rem;line-height:1}.score .msg{font-weight:800;color:var(--brand);font-size:1.1rem;margin:4px 0 6px}
+@media (prefers-color-scheme:dark){.score .msg{color:#86efac}}
+.note{font-size:.85rem;color:var(--muted);text-align:center}.err{color:var(--no);font-size:.95rem;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:12px;text-align:left}td{padding:6px 4px;border-top:1px solid var(--line)}td:last-child{text-align:right;font-weight:700}
+.remind{background:#fff7e0;border-radius:12px;padding:10px;font-weight:700;color:#7a5200}
+.closed{background:var(--card);border:2px dashed var(--line);border-radius:18px;padding:28px 18px;text-align:center;font-weight:800;font-size:1.1rem;margin-bottom:12px}
+.closed::before{content:"🌤️";display:block;font-size:2.6rem;margin-bottom:6px}
+.cd{background:var(--nobg);color:var(--no);border-radius:12px;padding:10px;text-align:center;font-weight:700;margin-top:12px}
+.task{border-left:6px solid var(--acc)}.task h3{margin:0 0 6px;font-size:1.1rem}.task .ins{white-space:pre-wrap;margin:8px 0}
+.dl{display:inline-block;font-size:.85rem;color:#7a4a00;background:#fef3c7;border-radius:99px;padding:3px 10px;font-weight:700}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px;margin:10px 0}.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:2px solid var(--line)}
+input[type=file]{width:100%;font-size:.9rem;color:var(--muted);padding:6px;border:2px dashed var(--line);border-radius:16px;background:var(--bg)}
+input[type=file]::file-selector-button{display:block;width:100%;min-height:56px;margin:0 0 6px;border:0;border-radius:12px;background:var(--acc);color:#3b2600;font-weight:800;font-size:1rem;font-family:inherit}
+.ok{color:var(--ok)}.wait{text-align:center;padding:30px;color:var(--muted)}
+.wait::before{content:"";display:block;margin:0 auto 10px;width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp 1s linear infinite}
+.info{text-align:left;margin:10px 0 0}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+nav.tabs button{margin:0;min-height:58px;flex:1;flex-direction:column;gap:2px;font-size:.85rem;background:transparent;color:var(--muted);box-shadow:none;border-radius:14px}
+nav.tabs button svg{width:24px;height:24px}nav.tabs button.on{background:var(--sel);color:var(--brand)}
+@media (prefers-color-scheme:dark){nav.tabs button.on{color:#86efac}}
+footer{text-align:center;font-size:.8rem;color:var(--muted);padding:6px 0 12px}
 </style></head><body>
-<header><div class="school">Bago National High School · Roxas City</div><h1>SHS ADM Portal</h1><p>Grade 11 &amp; 12 · Alternative Delivery Mode</p></header>
+<header>
+<div class="brandrow"><div class="logo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
+<div><div class="school">Bago National High School</div><h1>SHS ADM Portal</h1></div></div>
+<div class="banner"><span style="font-size:1.4rem">🌡️</span><div><b>Classes suspended</b> due to high heat index. Learn at home through ADM. Grade 11 &amp; 12.</div></div>
+<div class="hcd" id="hcd"></div>
+</header>
 <main>
-<div class="tabs"><button id="tq" class="on">📝 Quiz</button><button id="tt">📸 Tasks</button></div>
 <div class="closed" id="notopen" style="display:none">The ADM Portal is not open yet.<br><span style="font-weight:400;font-size:.95rem">Please wait for your teacher's announcement in the GC.</span></div>
 <div class="wait" id="loading">Loading…</div>
 
 <section id="quiz" style="display:none">
-<div class="card"><label class="f" for="nm">Name (First Last)</label><input type="text" id="nm" autocomplete="name">
-<label class="f" for="gr">Grade Level</label><select id="gr"><option value="">— Choose grade level —</option><option>Grade 11</option><option>Grade 12</option></select>
+<div class="card"><label class="f" for="nm">Your name (First Last)</label><input type="text" id="nm" autocomplete="name" placeholder="e.g. Juan Dela Cruz">
+<label class="f" for="gr">Grade level</label><select id="gr"><option value="">— Choose grade level —</option><option>Grade 11</option><option>Grade 12</option></select>
 <label class="f" for="sj">Subject</label><select id="sj" disabled><option value="">— Choose grade level first —</option></select>
-<label class="f" for="sec">Section</label><input type="text" id="sec"><p class="note" id="info"></p><div class="cd" id="cd" style="display:none"></div></div>
+<label class="f" for="sec">Section</label><input type="text" id="sec" placeholder="e.g. Rizal"><p class="note info" id="info"></p><div class="cd" id="cd" style="display:none"></div></div>
+<div class="prog" id="prog"><div class="row"><span>Progress</span><span id="progt">0 / 0</span></div><div class="tr"><div class="fl" id="progf"></div></div></div>
 <div id="result"></div><div id="qs"></div>
-<div class="card" id="bar" style="display:none"><div id="msg" class="err"></div><button id="submit">Submit answers</button></div>
-<p class="note">One submission per subject, no retake. Your score is sent to your teacher.</p>
+<div class="card" id="bar" style="display:none"><div id="msg" class="err"></div><button id="submit">Submit answers</button><p class="note">One submission per subject, no retake.</p></div>
 </section>
 
 <section id="tasks" style="display:none">
-<div class="card"><label class="f" for="tnm">Name (First Last)</label><input type="text" id="tnm" autocomplete="name">
-<label class="f" for="tgr">Grade Level</label><select id="tgr"><option value="">— Choose grade level —</option><option>Grade 11</option><option>Grade 12</option></select>
+<div class="card"><label class="f" for="tnm">Your name (First Last)</label><input type="text" id="tnm" autocomplete="name" placeholder="e.g. Juan Dela Cruz">
+<label class="f" for="tgr">Grade level</label><select id="tgr"><option value="">— Choose grade level —</option><option>Grade 11</option><option>Grade 12</option></select>
 <label class="f" for="tsj">Subject</label><select id="tsj" disabled><option value="">— Choose grade level first —</option></select>
-<label class="f" for="tsec">Section</label><input type="text" id="tsec"></div>
+<label class="f" for="tsec">Section</label><input type="text" id="tsec" placeholder="e.g. Rizal"></div>
 <div id="tlist"></div>
 <p class="note">Take clear photos of your work (1 to 5 photos). One submission per task.</p>
 </section>
-<p class="note">ADM Portal by Sir Raymart Valbarez</p>
+<footer>ADM Portal by Sir Raymart Valbarez</footer>
 </main>
+<nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button></nav>
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
