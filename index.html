@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHS ADM Portal — Bago NHS</title><meta name="theme-color" content="#3b4250">
+<style>
+:root{--bg:#f2f2f0;--card:#fff;--ink:#2b2f36;--muted:#6b6f76;--brand:#3b4250;--line:#e3e2de;--ok:#46604f;--okbg:#e6ece7;--no:#8a3b3b;--nobg:#f3e6e6}
+*{box-sizing:border-box}body{margin:0;font-family:"Noto Sans",system-ui,-apple-system,"Segoe UI",Roboto,"DejaVu Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{background:var(--brand);color:#f4f3f0;padding:26px 18px 58px;text-align:center}
+header .school{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8}header h1{margin:8px 0 4px;font-size:1.35rem;font-weight:600}header p{margin:2px 0;font-size:.9rem;opacity:.8}
+main{max-width:600px;margin:-38px auto 24px;padding:0 14px}.card{background:var(--card);border-radius:14px;box-shadow:0 4px 16px rgba(40,40,40,.08);padding:18px;margin-bottom:14px}
+label.f{font-weight:600;display:block;margin:8px 0 6px}input[type=text]{width:100%;font-size:1rem;padding:12px;border:2px solid #d8d7d2;border-radius:12px;font-family:inherit}
+h2.sec{font-size:1.05rem;margin:22px 4px 10px;color:var(--brand)}
+.q{font-weight:600;margin:0 0 10px}.opt{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;cursor:pointer}
+.opt input{transform:scale(1.2)}.right{background:var(--okbg);border-color:var(--ok)}.wrong{background:var(--nobg);border-color:var(--no)}
+.tag{font-size:.8rem;font-weight:700;padding:2px 8px;border-radius:99px}.tag.ok{background:var(--okbg);color:var(--ok)}.tag.no{background:var(--nobg);color:var(--no)}
+.exp{margin-top:8px;font-size:.92rem;color:var(--muted)}button{width:100%;font-size:1.05rem;padding:14px;border:0;border-radius:12px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px}
+.score{text-align:center;border:3px solid var(--brand)}.score b{font-size:2.4rem;display:block}.score .row{font-size:1rem;margin:3px 0}.note{font-size:.8rem;color:var(--muted);text-align:center}.err{color:var(--no);font-size:.9rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:10px}td{padding:3px 4px;border-top:1px solid var(--line)}td:last-child{text-align:right}
+select{width:100%;font-size:1rem;padding:12px;border:2px solid #d8d7d2;border-radius:12px;font-family:inherit;background:#fff}
+.ann{background:#fff7e0;border:2px solid #e0b84a;border-radius:14px;padding:16px;margin-bottom:14px;line-height:1.5}
+.ann h2{margin:0 0 6px;font-size:1.05rem;color:#7a5200}.ann ol{margin:8px 0;padding-left:20px}.ann li{margin:4px 0}
+.cd{background:#3b4250;color:#fff;border-radius:10px;padding:10px;text-align:center;font-weight:700;margin-top:10px}
+.closed{background:var(--nobg);color:var(--no);border-radius:14px;padding:22px;text-align:center;font-weight:700;font-size:1.1rem;margin-bottom:14px}
+.remind{background:#fff7e0;border-radius:8px;padding:8px;font-weight:700;color:#7a5200}
+
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{margin:0;background:#fff;color:var(--brand);border:2px solid var(--brand)}.tabs button.on{background:var(--brand);color:#fff}
+.task{border-left:5px solid var(--brand)}.task h3{margin:0 0 6px;font-size:1.05rem}.task .ins{white-space:pre-wrap;margin:8px 0}.dl{font-size:.85rem;color:var(--no);font-weight:600}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.thumbs img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+input[type=file]{width:100%;padding:10px;border:2px dashed #b9b8b2;border-radius:12px;background:#fafaf8;font-size:.95rem}
+.ok{color:var(--ok)}.wait{text-align:center;padding:22px;color:var(--muted)}
+</style></head><body>
+<header><div class="school">Bago National High School · Roxas City</div><h1>SHS ADM Portal</h1><p>Grade 11 &amp; 12 · Alternative Delivery Mode</p></header>
+<main>
+<div class="tabs"><button id="tq" class="on">📝 Quiz</button><button id="tt">📸 Tasks</button></div>
+<div class="closed" id="notopen" style="display:none">The ADM Portal is not open yet.<br><span style="font-weight:400;font-size:.95rem">Please wait for your teacher's announcement in the GC.</span></div>
+<div class="wait" id="loading">Loading…</div>
+
+<section id="quiz" style="display:none">
+<div class="card"><label class="f" for="nm">Name (First Last)</label><input type="text" id="nm" autocomplete="name">
+<label class="f" for="gr">Grade Level</label><select id="gr"><option value="">— Choose grade level —</option><option>Grade 11</option><option>Grade 12</option></select>
+<label class="f" for="sj">Subject</label><select id="sj" disabled><option value="">— Choose grade level first —</option></select>
+<label class="f" for="sec">Section</label><input type="text" id="sec"><p class="note" id="info"></p><div class="cd" id="cd" style="display:none"></div></div>
+<div id="result"></div><div id="qs"></div>
+<div class="card" id="bar" style="display:none"><div id="msg" class="err"></div><button id="submit">Submit answers</button></div>
+<p class="note">One submission per subject, no retake. Your score is sent to your teacher.</p>
+</section>
+
+<section id="tasks" style="display:none">
+<div class="card"><label class="f" for="tnm">Name (First Last)</label><input type="text" id="tnm" autocomplete="name">
+<label class="f" for="tgr">Grade Level</label><select id="tgr"><option value="">— Choose grade level —</option><option>Grade 11</option><option>Grade 12</option></select>
+<label class="f" for="tsj">Subject</label><select id="tsj" disabled><option value="">— Choose grade level first —</option></select>
+<label class="f" for="tsec">Section</label><input type="text" id="tsec"></div>
+<div id="tlist"></div>
+<p class="note">Take clear photos of your work (1 to 5 photos). One submission per task.</p>
+</section>
+<p class="note">ADM Portal by Sir Raymart Valbarez</p>
+</main>
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body></html>
