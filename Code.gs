@@ -6,6 +6,7 @@
  */
 var SHEET_ID = '1jDWuO1j3M2ZSKXhmM2IE_oOMjBO878X6f09RMpCVW0M'; // existing scores spreadsheet
 var ROOT_NAME = 'ADM Outputs — Bago NHS';
+var ROOT_ID = '1rdj6MJ-qCkQ7Nf1D2jBeREmT9qjKvQbI'; // Drive folder already created
 var TZ = 'Asia/Manila';
 var TABS = {
   scores: ['ADM Quiz Scores', ['Timestamp (Manila)','Name','Grade Level','Subject','Section','Score','Total','Percent','Topic breakdown','Answers']],
@@ -60,7 +61,7 @@ function folder_(parent, name){
   return it.hasNext() ? it.next() : parent.createFolder(name);
 }
 function root_(){
-  var p = PropertiesService.getScriptProperties(), id = p.getProperty('ROOT_ID');
+  var p = PropertiesService.getScriptProperties(), id = p.getProperty('ROOT_ID') || ROOT_ID;
   if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
   var it = DriveApp.getFoldersByName(ROOT_NAME), f = it.hasNext() ? it.next() : DriveApp.createFolder(ROOT_NAME);
   p.setProperty('ROOT_ID', f.getId());
