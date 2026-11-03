@@ -47,7 +47,21 @@ function finish(nm,sc,sub){let score=0,per={},ans="";
  window.scrollTo(0,0);$("cd").style.display="none";
  post({type:"quiz",name:nm,grade:$("gr").value,subject:sub,section:sc,score:score,total:ITEMS.length,percent:pct,topicBreakdown:tb,answers:ans})
  .then(j=>{$("st").innerHTML=j.ok?"<b class='ok'>✓ Score saved</b>":j.dup?"<b class='err'>You already submitted this subject before. Only the first submission counts.</b>":j.closed?"<b class='err'>Quiz closed. Score not recorded.</b>":"<b class='err'>Couldn't save — please screenshot this card.</b>"})
- .catch(()=>{$("st").innerHTML="<b class='err'>Couldn't save — please screenshot this card and send it to your teacher.</b>"})}
+ .catch(()=>{$("st").innerHTML="<b class='err'>Couldn't save — please screenshot this card and send it to your teacher.</b>"});
+ quizUpload(nm,sc,$("gr").value,sub)}
+function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document.createElement("div");c.className="card task";$("result").appendChild(c);
+ if(store(k)){c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✓ You already uploaded your output for this subject.</b></p>';return}
+ c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><input type="file" accept="image/*" multiple><div class="thumbs"></div><div class="err"></div><button id="qup">Upload output</button>';
+ const inp=c.querySelector("input"),er=c.querySelector(".err"),bt=c.querySelector("button");
+ inp.onchange=()=>{const th=c.querySelector(".thumbs");th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});er.textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""};
+ bt.onclick=async()=>{const files=[...inp.files].slice(0,5);if(!files.length){er.textContent="Please choose at least 1 photo.";return}
+  if(!confirm("Upload "+files.length+" photo(s)? You can only upload once."))return;bt.disabled=true;er.textContent="";bt.textContent="Preparing photos…";
+  try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
+   const j=await post({type:"quizOutput",name:nm,section:sc,grade:g,subject:sub,images:imgs});
+   if(j.ok||j.dup){store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · OUTPUT RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Uploaded":"Already uploaded")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(sub)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">Only one upload per subject.</p>':'')+'</div>';return}
+   er.textContent="Upload failed: "+(j.error||"please try again.")}catch(e){er.textContent="Upload failed. Check your internet and try again."}
+  bt.disabled=false;bt.textContent="Upload output"}}
+
 
 // ---------- TASKS ----------
 function openTasks(){return(CFG.tasks||[]).filter(t=>!t.deadline||Date.now()<t.deadline)}

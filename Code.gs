@@ -83,7 +83,7 @@ function doPost(e){
   var lock = LockService.getScriptLock(); lock.waitLock(25000);
   try {
     var d = JSON.parse(e.postData.contents);
-    return out_(d.type === 'task' ? saveTask_(d) : saveQuiz_(d));
+    return out_(d.type === 'task' ? saveTask_(d) : d.type === 'quizOutput' ? saveQuizOutput_(d) : saveQuiz_(d));
   } catch (err) {
     return out_({ ok: false, error: String(err) });
   } finally { lock.releaseLock(); }
@@ -110,7 +110,23 @@ function saveTask_(d){
   var imgs = (d.images || []).slice(0, 5);
   if (!imgs.length) return { ok: false, error: 'No photos received.' };
   if (taskDone_(name, t.id)) return { ok: false, dup: true };
-  var f = folder_(folder_(folder_(root_(), t.subject), t.title), section);
+  return savePhotos_(name, section, t.grade, t.subject, t.id, t.title, t.title, imgs);
+}
+
+/** Photos uploaded from the quiz score card: <Subject>/Quiz Outputs/<Section>. Task ID = QUIZ-<Subject>. */
+function saveQuizOutput_(d){
+  var name = String(d.name||'').trim().slice(0,80), section = String(d.section||'').trim().slice(0,60);
+  var subject = String(d.subject||'').slice(0,80), id = 'QUIZ-' + subject;
+  if (!name || !section || !subject) return { ok: false, error: 'Name, section and subject are required.' };
+  if (!quizDone_(name, subject)) return { ok: false, error: 'No quiz score found for this name and subject yet. Please try again in a minute.' };
+  var imgs = (d.images || []).slice(0, 5);
+  if (!imgs.length) return { ok: false, error: 'No photos received.' };
+  if (taskDone_(name, id)) return { ok: false, dup: true };
+  return savePhotos_(name, section, String(d.grade||'').slice(0,20), subject, id, 'Quiz Outputs', 'Quiz Output', imgs);
+}
+
+function savePhotos_(name, section, grade, subject, id, folderName, title, imgs){
+  var f = folder_(folder_(folder_(root_(), subject), folderName), section);
   var parts = name.replace(/,/g,' ').split(/\s+/).filter(String);
   var who = parts.length > 1 ? parts[parts.length-1] + '-' + parts.slice(0,-1).join('') : parts[0];
   var base = (section + '_' + who).replace(/[^A-Za-z0-9ñÑ\-_]+/g,'');
@@ -118,6 +134,6 @@ function saveTask_(d){
     var bytes = Utilities.base64Decode(String(b64).replace(/^data:image\/\w+;base64,/, ''));
     f.createFile(Utilities.newBlob(bytes, 'image/jpeg', base + '_' + (i+1) + '.jpg'));
   });
-  tab_('subs').appendRow([now_(), name, t.grade, t.subject, section, t.id, t.title, imgs.length, f.getUrl()]);
+  tab_('subs').appendRow([now_(), name, grade, subject, section, id, title, imgs.length, f.getUrl()]);
   return { ok: true, count: imgs.length };
 }
