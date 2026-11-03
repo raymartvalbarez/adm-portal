@@ -11,8 +11,8 @@ function post(o){return fetch(API_URL,{method:"POST",headers:{"Content-Type":"te
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k)==="1";localStorage.setItem(k,"1")}catch(e){return false}}
 
 // ---------- tabs ----------
-function tab(w){$("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";try{location.hash=w}catch(e){}}
-$("tq").onclick=()=>CFG&&tab("quiz");$("tt").onclick=()=>CFG&&tab("tasks");
+function tab(w){$("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("sq").className=$("tq").className;$("st2").className=$("tt").className;$("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";try{location.hash=w}catch(e){}}
+$("tq").onclick=()=>CFG&&tab("quiz");$("tt").onclick=()=>CFG&&tab("tasks");$("sq").onclick=$("tq").onclick;$("st2").onclick=$("tt").onclick;
 function notOpen(){$("loading").style.display="none";$("notopen").style.display="block"}
 
 // ---------- QUIZ ----------
