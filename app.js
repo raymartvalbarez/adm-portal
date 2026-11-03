@@ -18,8 +18,14 @@ function notOpen(){$("loading").style.display="none";$("notopen").style.display=
 // ---------- QUIZ ----------
 function sched(id){const n=norm(SUBJ[id].n);return(CFG.quizzes||[]).find(q=>norm(q.subject)===n)}
 function quizOpen(id){const s=sched(id);return !!(s&&s.open&&(!s.deadline||Date.now()<s.deadline))}
-$("gr").onchange=()=>{const g=$("gr").value,ks=Object.keys(SUBJ).filter(k=>SUBJ[k].g===g&&quizOpen(k));
- $("sj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":ks.length?"— Choose subject —":"No quiz open right now")+'</option>'+ks.map(k=>'<option value="'+k+'">'+esc(SUBJ[k].n)+'</option>').join("");$("sj").disabled=!ks.length;load("")};
+function dlab(d){return new Date(d+"T00:00:00+08:00").toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric",timeZone:"Asia/Manila"})}
+function sname(k){return SUBJ[k].n.replace(/\s*—\s*Quiz \d+.*$/,"")}
+function qstat(k){return store("adm_quiz_"+k)?"Already submitted":quizOpen(k)?"Open":"Closed"}
+function fillDates(){const ds=[...new Set(Object.values(SUBJ).map(s=>s.d))].sort().reverse(),op=ds.filter(d=>Object.keys(SUBJ).some(k=>SUBJ[k].d===d&&quizOpen(k)));
+ $("qd").innerHTML=ds.map(d=>'<option value="'+d+'">'+dlab(d)+(op.includes(d)?" · Open":" · Closed")+'</option>').join("");$("qd").value=op[0]||ds[0]||""}
+$("qd").onchange=()=>$("gr").onchange();
+$("gr").onchange=()=>{const g=$("gr").value,dt=$("qd").value,ks=Object.keys(SUBJ).filter(k=>SUBJ[k].g===g&&SUBJ[k].d===dt);
+ $("sj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":ks.length?"— Choose subject —":"No quiz on this date")+'</option>'+ks.map(k=>{const st=qstat(k);return'<option value="'+k+'"'+(st==="Closed"?" disabled":"")+'>'+esc(sname(k))+' — '+(st==="Open"?"🟢 Open":st==="Closed"?"🔒 Closed":"✅ Already submitted")+'</option>'}).join("");$("sj").disabled=!ks.length;load("")};
 $("sj").onchange=()=>{load($("sj").value);if(SID&&store("adm_quiz_"+SID))lockOut()};
 function load(id){SID=id;ITEMS=id?SUBJ[id].items:[];$("result").innerHTML="";$("msg").textContent="";$("bar").style.display=id?"block":"none";$("submit").style.display="block";$("qs").style.display="";
  $("info").textContent=id?ITEMS.length+" items · "+new Set(ITEMS.map(x=>x.t)).size+" topics":"Choose your grade level and subject to start.";
@@ -97,4 +103,4 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  bt.disabled=false;bt.textContent="Submit task"}
 
 // ---------- start ----------
-if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;$("loading").style.display="none";hcd();load("");tab(location.hash==="#tasks"?"tasks":"quiz")}).catch(notOpen);
+if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;$("loading").style.display="none";fillDates();hcd();load("");tab(location.hash==="#tasks"?"tasks":"quiz")}).catch(notOpen);
