@@ -103,4 +103,22 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  bt.disabled=false;bt.textContent="Submit task"}
 
 // ---------- start ----------
-if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;$("loading").style.display="none";fillDates();hcd();load("");tab(location.hash==="#tasks"?"tasks":"quiz")}).catch(notOpen);
+if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;setupNames();$("loading").style.display="none";fillDates();hcd();load("");tab(location.hash==="#tasks"?"tasks":"quiz")}).catch(notOpen);
+
+function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if(!LS.length)return;
+ [["gr","sec","nm"],["tgr","tsec","tnm"]].forEach(([g,s,n])=>{const gi=$(g),si=$(s),ni=$(n),nl=ni.previousElementSibling,sl=si.previousElementSibling;
+  const ss=document.createElement("select"),ns=document.createElement("select");ss.id=s+"L";ns.id=n+"L";
+  const l1=document.createElement("label");l1.className="f";l1.htmlFor=ss.id;l1.textContent="Section";
+  const l2=document.createElement("label");l2.className="f";l2.htmlFor=ns.id;l2.textContent="Your name";
+  const nt=document.createElement("label");nt.className="f";nt.htmlFor=n;nt.textContent="Type your name (First Last)";
+  gi.after(l1,ss,l2,ns,nt,ni);sl.textContent="Type your section";si.before(sl);
+  [nl].forEach(e=>e.remove());let manual=false;
+  const vis=()=>{nt.style.display=ni.style.display=manual?"":"none";sl.style.display=si.style.display=manual?"":"none"};
+  const fillS=()=>{const secs=[...new Set(LS.filter(x=>x.g===gi.value).map(x=>x.s))].sort();
+   ss.innerHTML='<option value="">'+(gi.value?"— Choose section —":"— Choose grade level first —")+'</option>'+secs.map(x=>'<option>'+esc(x)+'</option>').join("");ss.disabled=!secs.length;fillN()};
+  const key=x=>(x.l||x.n)+" "+(x.f||"");
+  const fillN=()=>{const ps=LS.filter(x=>x.g===gi.value&&x.s===ss.value).sort((a,b)=>key(a).localeCompare(key(b)));
+   ns.innerHTML='<option value="">'+(ss.value?"— Choose your name —":"— Choose section first —")+'</option>'+ps.map(x=>'<option value="'+esc(x.n)+'">'+esc(x.l&&x.f?x.l+", "+x.f:x.n)+'</option>').join("")+(ss.value?'<option value="__other">My name is not on the list</option>':"");
+   ns.disabled=!ss.value;sync()};
+  const sync=()=>{manual=ns.value==="__other";if(manual){ni.value="";si.value=""}else{ni.value=ns.value;si.value=ss.value}vis()};
+  gi.addEventListener("change",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);fillS()});}

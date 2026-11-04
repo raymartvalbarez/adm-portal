@@ -1,0 +1,7 @@
+Code.gs change (learner name dropdown) — 2 edits, nothing else changed:
+1) NEW function learners_() inserted just above doGet(): reads the 'Learners' tab (A Grade, B Section, C Last, D First) from row 2,
+   skips rows missing grade/section/name, returns [{g, s, n:'First Last' (trimmed), l:Last, f:First}]. Returns [] if tab missing/empty. Read-only.
+2) In doGet, the ?action=config response now also includes  learners: learners_()
+   (was: { ok, quizzes, tasks, now } -> now: { ok, quizzes, tasks, learners, now }).
+Redeploy: paste full Code.gs, Save, Deploy > Manage deployments > edit 'ADM Portal v1' > Version: New version > Deploy (keeps same /exec URL).
+No new scopes needed (already uses SpreadsheetApp).

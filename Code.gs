@@ -71,9 +71,17 @@ function root_(){
 /** Run once from the editor (optional): creates tabs + Drive root and asks for permissions. */
 function setup(){ Object.keys(TABS).forEach(tab_); Logger.log(root_().getUrl()); }
 
+// Learner list for the portal name dropdown (Learners tab: A Grade, B Section, C Last, D First).
+function learners_(){
+  var sh = ss_().getSheetByName('Learners'); if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues().map(function(r){
+    var g = String(r[0]||'').trim(), s = String(r[1]||'').trim(), l = String(r[2]||'').trim(), f = String(r[3]||'').trim();
+    return (g && s && (l || f)) ? { g: g, s: s, n: (f + ' ' + l).trim(), l: l, f: f } : null;
+  }).filter(function(x){ return x; });
+}
 function doGet(e){
   var p = (e && e.parameter) || {};
-  if (p.action === 'config') return out_({ ok: true, quizzes: schedule_(), tasks: tasks_(), now: Date.now() });
+  if (p.action === 'config') return out_({ ok: true, quizzes: schedule_(), tasks: tasks_(), learners: learners_(), now: Date.now() });
   if (p.action === 'check')  return out_({ exists: quizDone_(p.name, p.subject) });
   if (p.action === 'checkTask') return out_({ exists: taskDone_(p.name, p.task) });
   return out_({ ok: true, app: 'ADM Portal' });
