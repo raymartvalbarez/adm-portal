@@ -41,7 +41,7 @@ function tick(){const cd=$("cd"),s=SID&&sched(SID);hcd();if(!s||!s.deadline){cd.
  if(Date.now()>=s.deadline&&!$("result").innerHTML){$("qs").innerHTML="";$("bar").style.display="none";cd.textContent="This quiz closed at "+fmt(s.deadline)+".";cd.style.display="block";return}
  cd.style.display="block";cd.textContent="Closes "+fmt(s.deadline)+" · ⏰ "+left(s.deadline)}
 setInterval(tick,15000);
-function lockOut(){$("qs").innerHTML="";$("prog").style.display="none";$("bar").style.display="none";$("info").textContent="You already submitted this subject. Only one submission per subject, no retake."}
+function lockOut(){$("qs").innerHTML="";$("prog").style.display="none";$("bar").style.display="none";$("info").textContent="You already submitted this. Only one submission is allowed."}
 $("submit").onclick=()=>{const nm=$("nm").value.trim(),sc=$("sec").value.trim(),msg=$("msg"),bt=$("submit");
  if(!nm||!sc||!SID){msg.textContent="Please enter your name, grade level, subject and section first.";window.scrollTo(0,0);return}
  if(!quizOpen(SID)){tick();msg.textContent="This quiz is closed.";return}
@@ -58,19 +58,20 @@ function finish(nm,sc,sub){let score=0,per={},ans="";
  $("result").innerHTML='<div class="card score"><div class="cel">'+(pct>=75?"🎉🏆🎉":pct>=50?"👏✨":"💪📚")+'</div><div class="msg">'+(pct>=75?"Great job!":pct>=50?"Well done!":"Keep going, you can do it!")+'</div><div class="note">SHS ADM PORTAL — BAGO NHS · RESULT</div><div class="row"><b style="font-size:1rem;display:inline">'+esc(sub)+'</b></div><b>'+score+' / '+ITEMS.length+'</b><div class="row">'+pct+'%</div><div class="row"><b style="font-size:1.1rem;display:inline">'+esc(nm)+'</b></div><div class="row">'+esc($("gr").value)+' · Section: '+esc(sc)+'</div><div class="row">'+fmt(Date.now())+'</div><table>'+Object.keys(per).map(k=>'<tr><td>'+esc(k)+'</td><td>'+per[k][0]+' / '+per[k][1]+'</td></tr>').join("")+'</table><p class="note" id="st">Saving score…</p></div>';
  window.scrollTo(0,0);$("cd").style.display="none";
  post({type:"quiz",name:nm,grade:$("gr").value,subject:sub,section:sc,score:score,total:ITEMS.length,percent:pct,topicBreakdown:tb,answers:ans})
- .then(j=>{$("st").innerHTML=j.ok?"<b class='ok'>✓ Score saved</b>":j.dup?"<b class='err'>You already submitted this subject before. Only the first submission counts.</b>":j.closed?"<b class='err'>Quiz closed. Score not recorded.</b>":"<b class='err'>Couldn't save — please screenshot this card.</b>"})
+ .then(j=>{$("st").innerHTML=j.ok?"<b class='ok'>✓ Score saved</b>":(j.dup||j.error==="already_submitted")?"<b class='err'>You already submitted this. Only one submission is allowed. Only the first submission counts.</b>":j.closed?"<b class='err'>Quiz closed. Score not recorded.</b>":"<b class='err'>Couldn't save — please screenshot this card.</b>"})
  .catch(()=>{$("st").innerHTML="<b class='err'>Couldn't save — please screenshot this card and send it to your teacher.</b>"});
  quizUpload(nm,sc,$("gr").value,sub)}
 function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document.createElement("div");c.className="card task";$("result").appendChild(c);
- if(store(k)){c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✓ You already uploaded your output for this subject.</b></p>';return}
+ if(store(k)){c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}
  c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><label class="f">📷 Take a photo or choose from gallery</label><input type="file" accept="image/*" multiple><div class="thumbs"></div><div class="err"></div><button id="qup">Upload output</button>';
  const inp=c.querySelector("input"),er=c.querySelector(".err"),bt=c.querySelector("button");
  inp.onchange=()=>{const th=c.querySelector(".thumbs");th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});er.textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""};
  bt.onclick=async()=>{const files=[...inp.files].slice(0,5);if(!files.length){er.textContent="Please choose at least 1 photo.";return}
-  if(!confirm("Upload "+files.length+" photo(s)? You can only upload once."))return;bt.disabled=true;er.textContent="";bt.textContent="Preparing photos…";
+  if(!confirm("Upload "+files.length+" photo(s)? You can only upload once."))return;bt.disabled=true;er.textContent="";bt.textContent="Checking…";
+  if(await chk(nm,"QUIZ-"+sub)){store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}bt.textContent="Preparing photos…";
   try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
    const j=await post({type:"quizOutput",name:nm,section:sc,grade:g,subject:sub,images:imgs});
-   if(j.ok||j.dup){store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · OUTPUT RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Uploaded":"Already uploaded")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(sub)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">Only one upload per subject.</p>':'')+'</div>';return}
+   if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · OUTPUT RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Uploaded":"Already uploaded")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(sub)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
    er.textContent="Upload failed: "+(j.error||"please try again.")}catch(e){er.textContent="Upload failed. Check your internet and try again."}
   bt.disabled=false;bt.textContent="Upload output"}}
 
@@ -83,21 +84,28 @@ $("tsj").onchange=showTasks;
 function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist");if(!s){box.innerHTML="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(!ts.length){box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
- box.innerHTML=ts.map((t,i)=>{const done=store("adm_task_"+t.id);return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'')+'<div class="ins">'+esc(t.instructions)+'</div>'+
- (done?'<p class="ok"><b>✓ You already submitted this task.</b></p>':'<label class="f">📷 Photos of your work (1–5)</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="thumbs"></div><div class="err"></div><button data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
+ box.innerHTML=ts.map((t,i)=>{const done=store("adm_task_"+t.id)||store(tkey(t.id));return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'')+'<div class="ins">'+esc(t.instructions)+'</div>'+
+ (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5)</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="thumbs"></div><div class="err"></div><button data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>inp.onchange=()=>{const th=inp.nextElementSibling;th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});
   inp.parentNode.querySelector(".err").textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""});
- box.querySelectorAll("button").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode))}
+ box.querySelectorAll("button").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));taskStatus(ts)}
+const ONCE="You already submitted this. Only one submission is allowed.";
+function tkey(id){return"adm_task_"+norm($("tnm").value)+"_"+id}
+function chk(nm,id){return get("action=checkTask&name="+encodeURIComponent(nm)+"&task="+encodeURIComponent(id)).then(j=>!!(j&&j.exists)).catch(()=>false)}
+function lockCard(card,t){card.innerHTML='<h3>'+esc(t.title)+'</h3><p class="ok"><b>✅ Submitted — '+ONCE+'</b></p>'}
+function taskStatus(ts){const nm=$("tnm").value.trim();if(!nm)return;ts.forEach((t,i)=>{const c=$("tk"+i);if(!c||!c.querySelector("button"))return;chk(nm,t.id).then(x=>{if(x&&$("tnm").value.trim()===nm){store(tkey(t.id),1);lockCard(c,t)}})})}
+["tnm","tsec"].forEach(id=>{const e=$(id);if(e){e.addEventListener("change",showTasks)}});document.addEventListener("change",e=>{if(e.target&&e.target.id==="tnmL")showTasks()});
 function shrink(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const M=1600,r=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement("canvas");
  c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",0.7).split(",")[1])};im.onerror=()=>no(new Error("bad image"));im.src=u})}
 async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").value.trim(),er=card.querySelector(".err"),bt=card.querySelector("button"),files=[...card.querySelector("input[type=file]").files].slice(0,5);
  if(!nm||!sc){er.textContent="Please enter your name and section at the top first.";window.scrollTo(0,0);return}
  if(!files.length){er.textContent="Please choose at least 1 photo.";return}
  if(!confirm("Submit "+files.length+" photo(s) for \""+t.title+"\"? You can only submit once."))return;
- bt.disabled=true;er.textContent="";bt.textContent="Preparing photos…";
+ bt.disabled=true;er.textContent="";bt.textContent="Checking…";
+ if(store(tkey(t.id))||await chk(nm,t.id)){store(tkey(t.id),1);lockCard(card,t);return}bt.textContent="Preparing photos…";
  try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
   const j=await post({type:"task",taskId:t.id,name:nm,section:sc,grade:$("tgr").value,images:imgs});
-  if(j.ok||j.dup){store("adm_task_"+t.id,1);card.innerHTML='<h3>'+esc(t.title)+'</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · TASK RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Submitted":"Already submitted")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(t.subject)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">Only one submission per task.</p>':'')+'</div>';return}
+  if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(tkey(t.id),1);card.innerHTML='<h3>'+esc(t.title)+'</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · TASK RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Submitted":"Already submitted")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(t.subject)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
   er.textContent=j.closed?"This task is already closed.":"Upload failed: "+(j.error||"please try again.")}
  catch(e){er.textContent="Upload failed. Check your internet and try again."}
  bt.disabled=false;bt.textContent="Submit task"}

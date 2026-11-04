@@ -1,0 +1,40 @@
+diff --git a/Code.gs b/Code.gs
+index 689f1a3..a88bcf1 100644
+--- a/Code.gs
++++ b/Code.gs
+@@ -40,7 +40,7 @@ function quizDone_(name, subject){
+   var n = norm_(name), s = norm_(subject);
+   return rows_('scores').some(function(r){ return norm_(r[1]) === n && norm_(r[3]) === s; });
+ }
+-function taskDone_(name, taskId){
++function taskDone_(name, taskId){ // normalized name (lower, trimmed, punctuation->space) + Task ID
+   var n = norm_(name), t = norm_(taskId);
+   return rows_('subs').some(function(r){ return norm_(r[1]) === n && norm_(r[5]) === t; });
+ }
+@@ -102,7 +102,7 @@ function saveQuiz_(d){
+   if (!name || !subject) return { ok: false, error: 'missing' };
+   var s = schedule_().filter(function(q){ return norm_(q.subject) === norm_(subject); })[0];
+   if (!s || !s.open || (s.deadline && Date.now() > s.deadline + 120000)) return { ok: false, closed: true };
+-  if (quizDone_(name, subject)) return { ok: false, dup: true };
++  if (quizDone_(name, subject)) return { ok: false, dup: true, error: 'already_submitted' };
+   tab_('scores').appendRow([now_(), name, String(d.grade||'').slice(0,20), subject, String(d.section||'').slice(0,60),
+     Number(d.score)||0, Number(d.total)||0, (Number(d.percent)||0)+'%',
+     String(d.topicBreakdown||'').slice(0,500), String(d.answers||'').slice(0,200)]);
+@@ -117,7 +117,7 @@ function saveTask_(d){
+   if (!name || !section) return { ok: false, error: 'Name and section are required.' };
+   var imgs = (d.images || []).slice(0, 5);
+   if (!imgs.length) return { ok: false, error: 'No photos received.' };
+-  if (taskDone_(name, t.id)) return { ok: false, dup: true };
++  if (taskDone_(name, t.id)) return { ok: false, dup: true, error: 'already_submitted' };
+   return savePhotos_(name, section, t.grade, t.subject, t.id, t.title, t.title, imgs);
+ }
+ 
+@@ -129,7 +129,7 @@ function saveQuizOutput_(d){
+   if (!quizDone_(name, subject)) return { ok: false, error: 'No quiz score found for this name and subject yet. Please try again in a minute.' };
+   var imgs = (d.images || []).slice(0, 5);
+   if (!imgs.length) return { ok: false, error: 'No photos received.' };
+-  if (taskDone_(name, id)) return { ok: false, dup: true };
++  if (taskDone_(name, id)) return { ok: false, dup: true, error: 'already_submitted' };
+   return savePhotos_(name, section, String(d.grade||'').slice(0,20), subject, id, 'Quiz Outputs', 'Quiz Output', imgs);
+ }
+ 
