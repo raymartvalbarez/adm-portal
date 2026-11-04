@@ -38,7 +38,11 @@ function now_(){ return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:s
 
 function quizDone_(name, subject){
   var n = norm_(name), s = norm_(subject);
-  return rows_('scores').some(function(r){ return norm_(r[1]) === n && norm_(r[3]) === s; });
+  var hit = function(r){ return norm_(r[1]) === n && norm_(r[3]) === s; };
+  if (rows_('scores').some(hit)) return true;
+  var old = ss_().getSheetByName('Scores'); // legacy Nov 3 tab
+  if (!old || old.getLastRow() < 2) return false;
+  return old.getRange(2, 1, old.getLastRow() - 1, 4).getValues().some(hit);
 }
 function taskDone_(name, taskId){ // normalized name (lower, trimmed, punctuation->space) + Task ID
   var n = norm_(name), t = norm_(taskId);
