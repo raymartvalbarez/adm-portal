@@ -90,7 +90,7 @@ $("tsj").onchange=showTasks;
 function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist");if(!s){box.innerHTML="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(!ts.length){box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
- box.innerHTML=ts.map((t,i)=>{const done=store("adm_task_"+t.id)||store(tkey(t.id));return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'')+'<div class="ins">'+esc(t.instructions)+'</div>'+
+ box.innerHTML=ts.map((t,i)=>{const done=store("adm_task_"+t.id)||store(tkey(t.id));return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(t.instructions)+'</div>'+
  (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5)</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="thumbs"></div><div class="err"></div><button data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>inp.onchange=()=>{const th=inp.nextElementSibling;th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});
   inp.parentNode.querySelector(".err").textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""});
