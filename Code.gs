@@ -88,6 +88,8 @@ function doGet(e){
   if (p.action === 'config') return out_({ ok: true, quizzes: schedule_(), tasks: tasks_(), learners: learners_(), now: Date.now() });
   if (p.action === 'check')  return out_({ exists: quizDone_(p.name, p.subject) });
   if (p.action === 'checkTask') return out_({ exists: taskDone_(p.name, p.task) });
+  if (p.action === 'nsedCheck') return out_({ exists: nsedDone_(p.name), deadline: nsedDeadline_(), nsedFolder: nsedRoot_().getUrl() });
+  if (p.action === 'nsedInfo') return out_({ ok: true, nsedFolder: nsedRoot_().getUrl(), deadline: nsedDeadline_(), now: Date.now() });
   return out_({ ok: true, app: 'ADM Portal' });
 }
 
@@ -95,7 +97,7 @@ function doPost(e){
   var lock = LockService.getScriptLock(); lock.waitLock(25000);
   try {
     var d = JSON.parse(e.postData.contents);
-    return out_(d.type === 'task' ? saveTask_(d) : d.type === 'quizOutput' ? saveQuizOutput_(d) : saveQuiz_(d));
+    return out_(d.action === 'nsed' ? saveNsed_(d) : d.type === 'task' ? saveTask_(d) : d.type === 'quizOutput' ? saveQuizOutput_(d) : saveQuiz_(d));
   } catch (err) {
     return out_({ ok: false, error: String(err) });
   } finally { lock.releaseLock(); }
@@ -148,4 +150,40 @@ function savePhotos_(name, section, grade, subject, id, folderName, title, imgs)
   });
   tab_('subs').appendRow([now_(), name, grade, subject, section, id, title, imgs.length, f.getUrl()]);
   return { ok: true, count: imgs.length };
+}
+
+// ===== 4th Quarter NSED 2026 — Duck, Cover and Hold photo portal =====
+var NSED_FOLDER = '4th NSED 2026 — Duck Cover Hold';
+var NSED_DEFAULT_DEADLINE = '2026-11-05 12:00'; // Manila; Script Property NSED_DEADLINE overrides
+var NSED_TAB = 'NSED Submissions';
+var NSED_HEAD = ['Timestamp','Grade','Section','Name','Photo Count','File Links','Folder Link'];
+function nsedRoot_(){ return folder_(root_(), NSED_FOLDER); }
+function nsedTab_(){
+  var ss = ss_(), sh = ss.getSheetByName(NSED_TAB);
+  if (!sh) { sh = ss.insertSheet(NSED_TAB); sh.appendRow(NSED_HEAD); sh.getRange(1,1,1,NSED_HEAD.length).setFontWeight('bold'); sh.setFrozenRows(1); }
+  return sh;
+}
+function nsedDeadline_(){ return dl_(PropertiesService.getScriptProperties().getProperty('NSED_DEADLINE') || NSED_DEFAULT_DEADLINE); } // optional "yyyy-mm-dd hh:mm" Manila
+function nsedDone_(name){
+  var n = norm_(name); if (!n) return false;
+  var sh = nsedTab_(); if (sh.getLastRow() < 2) return false;
+  return sh.getRange(2, 4, sh.getLastRow() - 1, 1).getValues().some(function(r){ return norm_(r[0]) === n; });
+}
+function saveNsed_(d){
+  var name = String(d.name||'').trim().slice(0,80), grade = String(d.grade||'').trim().slice(0,20), section = String(d.section||'').trim().slice(0,60);
+  if (!name || !grade || !section) return { ok: false, error: 'Grade, section and name are required.' };
+  var dl = nsedDeadline_(); if (dl && Date.now() > dl + 120000) return { ok: false, closed: true };
+  var imgs = (d.photos || []).slice(0, 5);
+  if (!imgs.length) return { ok: false, error: 'No photos received.' };
+  if (nsedDone_(name)) return { ok: false, dup: true, error: 'already_submitted' };
+  var hit = learners_().filter(function(x){ return norm_(x.n) === norm_(name); })[0];
+  var who = hit ? ((hit.l || '') + '_' + (hit.f || '')) : name;
+  var base = (section + '_' + who).replace(/\s+/g,'').replace(/[^A-Za-z0-9ñÑ\-_]+/g,'');
+  var f = folder_(nsedRoot_(), grade + ' - ' + section), links = [];
+  imgs.forEach(function(b64, i){
+    var bytes = Utilities.base64Decode(String(b64).replace(/^data:image\/\w+;base64,/, ''));
+    links.push(f.createFile(Utilities.newBlob(bytes, 'image/jpeg', base + '_' + (i+1) + '.jpg')).getUrl());
+  });
+  nsedTab_().appendRow([now_(), grade, section, name, imgs.length, links.join('\n'), f.getUrl()]);
+  return { ok: true, count: imgs.length, folderUrl: f.getUrl() };
 }
