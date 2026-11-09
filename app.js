@@ -125,13 +125,18 @@ function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if
   const l2=document.createElement("label");l2.className="f";l2.htmlFor=ns.id;l2.textContent="Your name";
   const nt=document.createElement("label");nt.className="f";nt.htmlFor=n;nt.textContent="Type your name (First Last)";
   gi.after(l1,ss,l2,ns,nt,ni);sl.textContent="Type your section";si.before(sl);
-  [nl].forEach(e=>e.remove());let manual=false;
+  if(nl)nl.remove();let manual=false;
   const vis=()=>{nt.style.display=ni.style.display=manual?"":"none";sl.style.display=si.style.display=manual?"":"none"};
-  const fillS=()=>{const secs=[...new Set(LS.filter(x=>x.g===gi.value).map(x=>x.s))].sort();
-   ss.innerHTML='<option value="">'+(gi.value?"— Choose section —":"— Choose grade level first —")+'</option>'+secs.map(x=>'<option>'+esc(x)+'</option>').join("");ss.disabled=!secs.length;fillN()};
-  const key=x=>(x.l||x.n)+" "+(x.f||"");
-  const fillN=()=>{const ps=LS.filter(x=>x.g===gi.value&&x.s===ss.value).sort((a,b)=>key(a).localeCompare(key(b)));
-   ns.innerHTML='<option value="">'+(ss.value?"— Choose your name —":"— Choose section first —")+'</option>'+ps.map(x=>'<option value="'+esc(x.n)+'">'+esc(x.l&&x.f?x.l+", "+x.f:x.n)+'</option>').join("")+(ss.value?'<option value="__other">My name is not on the list</option>':"");
-   ns.disabled=!ss.value;sync()};
   const sync=()=>{manual=ns.value==="__other";if(manual){ni.value="";si.value=""}else{ni.value=ns.value;si.value=ss.value}vis()};
-  gi.addEventListener("change",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);fillS()});}
+  const fillN=()=>{const prev=ns.value,ps=namesForSection(LS,gi.value,ss.value);
+   ns.replaceChildren();ns.add(new Option(ss.value?"— Choose your name —":"— Choose section first —",""));
+   ps.forEach(x=>ns.add(new Option(x.l&&x.f?x.l+", "+x.f:x.n,x.n)));
+   if(ss.value)ns.add(new Option("My name is not on the list","__other"));
+   ns.disabled=!ss.value;if(prev&&[...ns.options].some(o=>o.value===prev))ns.value=prev;sync()};
+  const fillS=()=>{const prev=ss.value,secs=sectionsForGrade(LS,gi.value);
+   ss.disabled=false;ss.replaceChildren();
+   ss.add(new Option(!gi.value?"— Choose grade level first —":secs.length?"— Choose section —":"— No section on the list —",""));
+   secs.forEach(sec=>ss.add(new Option(sec,sec)));
+   ss.value=secs.indexOf(prev)>=0?prev:(secs.length===1?secs[0]:"");fillN()};
+  const prev=gi.onchange;gi.onchange=function(ev){if(typeof prev==="function")prev.call(gi,ev);fillS()};
+  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);fillS()})};

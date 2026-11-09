@@ -3,10 +3,10 @@
 <meta http-equiv="Cache-Control" content="no-cache"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SHS ADM Portal — Bago NHS</title><meta name="theme-color" content="#14532d">
 <style>
-:root{--bg:#f1f5f2;--card:#fff;--ink:#17201b;--muted:#5b6660;--brand:#166534;--brand2:#0f3d24;--acc:#f59e0b;--line:#dfe6e1;--ok:#15803d;--okbg:#dcfce7;--no:#b91c1c;--nobg:#fee2e2;--sel:#e7f5ec;--shadow:0 2px 10px rgba(15,61,36,.08)}
+:root{--bg:#f1f5f2;--card:#fff;--ink:#17201b;--muted:#5b6660;--brand:#166534;--brand2:#0f3d24;--acc:#f59e0b;--line:#dfe6e1;--ok:#15803d;--okbg:#dcfce7;--no:#b91c1c;--nobg:#fee2e2;--sel:#e7f5ec;--shadow:0 2px 10px rgba(15,61,36,.08);--tab-bar:90px;--tab-clear:48px}
 @media (prefers-color-scheme:dark){:root{--bg:#0d1511;--card:#17221c;--ink:#e8efe9;--muted:#9fb0a6;--line:#2a3a31;--sel:#173a26;--okbg:#14351f;--nobg:#3a1717;--ok:#4ade80;--no:#f87171;--shadow:none}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{font-size:17px}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+html{font-size:17px;scroll-padding-bottom:calc(var(--tab-bar) + var(--tab-clear) + env(safe-area-inset-bottom))}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:calc(var(--tab-bar) + var(--tab-clear) + env(safe-area-inset-bottom))}
 header{background:linear-gradient(160deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:18px 16px 54px;position:relative}
 .brandrow{display:flex;align-items:center;gap:12px;max-width:640px;margin:0 auto}
 .logo{width:48px;height:48px;flex:none;border-radius:50%;background:#fff;display:grid;place-items:center}
@@ -19,7 +19,7 @@ label.f{font-weight:700;display:block;margin:12px 0 6px;font-size:.95rem}label.f
 input[type=text],select{width:100%;font-size:1rem;min-height:52px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;font-family:inherit;background:var(--card);color:var(--ink);appearance:none;-webkit-appearance:none}
 select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 22px) 50%,calc(100% - 16px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
 input[type=text]:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(22,101,52,.18)}
-select:disabled{opacity:.6}
+select:disabled{opacity:.6}select option,select optgroup{color:#17201b;background-color:#fff}
 h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;margin:20px 6px 8px;color:var(--brand)}
 @media (prefers-color-scheme:dark){h2.sec{color:#86efac}}
 .q{font-weight:700;margin:0 0 12px;font-size:1.02rem}
@@ -101,8 +101,8 @@ footer{text-align:center;font-size:.8rem;color:var(--muted);padding:6px 0 12px}
 <footer>ADM Portal by Sir Raymart Valbarez</footer>
 </main>
 <nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button></nav>
-<script src="logic.js?v=20261109a"></script>
+<script src="logic.js?v=20261109b"></script>
 <script src="config.js?v=20261105w"></script>
 <script src="data.js?v=20261109a"></script>
-<script src="app.js?v=20261109a"></script>
+<script src="app.js?v=20261109b"></script>
 </body></html>
