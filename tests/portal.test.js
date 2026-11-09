@@ -139,28 +139,57 @@ test("section and name lists follow the live learner shape", () => {
   assert.match(app, /secs\.length===1\?secs\[0\]:""/);
 });
 
-test("portal closes Nov 6 play links and cache-busts changed assets", () => {
+test("games stay open and the tab bar still clears the page", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.match(html, /Games are closed/);
-  assert.equal(html.includes("Games open at 8:00 AM"), false);
-  assert.equal(html.includes("data-k=\"pl\""), false);
-  assert.equal(html.includes("glk"), false);
-  assert.equal((html.match(/Play closed/g) || []).length, 3);
+  assert.match(html, /Open for ADM/);
+  assert.equal((html.match(/▶ Play/g) || []).length, 3);
   for (const game of ["integer-racer", "integer-archer", "treasure-diver"]) {
+    assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/"'));
     assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html"));
-    assert.equal(html.includes("https://raymartvalbarez.github.io/" + game + "/\""), false);
-    assert.equal(html.includes("https://raymartvalbarez.github.io/" + game + "\""), false);
   }
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.equal(html.includes("padding-bottom:calc(84px + env(safe-area-inset-bottom))"), false);
   assert.match(html, /logic\.js\?v=20261109b/);
-  assert.match(html, /data\.js\?v=20261109a/);
-  assert.match(html, /app\.js\?v=20261109b/);
-  assert.match(html, /select option,select optgroup\{color:#17201b;background-color:#fff\}/);
+  assert.match(html, /data\.js\?v=20261110a/);
+  assert.match(html, /app\.js\?v=20261110a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
-  assert.match(app, /defaultTaskDate/);
+  assert.match(app, /handoutCard/);
+});
+
+test("Week 9 handouts group on Nov 10 and do not ask for a submission", () => {
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8"), ctx);
+  const note = "Download the PDF handout and study it. This is a lesson handout only. No photo submission needed.";
+  const expect = [
+    ["G11-GM-20261110-HANDOUT", "Grade 11", "General Mathematics", "handouts/GenMath_Week9_Handout.pdf"],
+    ["G11-PR1-20261110-HANDOUT", "Grade 11", "Practical Research 1", "handouts/PR1_Week9_Handout.pdf"],
+    ["G12-PR2-20261110-HANDOUT", "Grade 12", "Practical Research 2", "handouts/PR2_Week9_Handout.pdf"],
+    ["G12-CESC-20261110-HANDOUT", "Grade 12", "Community Engagement, Solidarity and Citizenship (CESC)", "handouts/CESC_Week9_Handout.pdf"],
+    ["G12-ENT-20261110-HANDOUT", "Grade 12", "Entrepreneurship", "handouts/Entrep_Week9_Handout.pdf"]
+  ];
+  assert.equal(ctx.HANDOUTS.length, 5);
+  expect.forEach((row, i) => {
+    const h = ctx.HANDOUTS[i];
+    assert.equal(h.id, row[0]);
+    assert.equal(h.grade, row[1]);
+    assert.equal(h.subject, row[2]);
+    assert.equal(h.file, row[3]);
+    assert.equal(h.title, "Lesson Handout");
+    assert.equal(h.kind, "handout");
+    assert.equal(h.instructions, note);
+    assert.equal(h.deadline, undefined);
+    assert.equal(logic.taskReleaseDate(h), "2026-11-10");
+    const pdf = fs.readFileSync(path.join(root, h.file));
+    assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+  });
+  const dates = [...new Set(ctx.HANDOUTS.map((h) => logic.taskReleaseDate(h)))];
+  assert.deepEqual(dates, ["2026-11-10"]);
+  assert.equal(logic.defaultTaskDate(["2026-11-09", "2026-11-10", "other"]), "2026-11-10");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /kind==="handout"/);
+  assert.equal(app.includes("type:\"task\",taskId:t.id") || app.includes('type:"task"'), true);
 });

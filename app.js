@@ -79,21 +79,25 @@ function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document
 // ---------- TASKS ----------
 function tdate(t){return taskReleaseDate(t)}
 function liveTasks(){return(CFG.tasks||[]).filter(t=>!t.deadline||Date.now()<t.deadline)}
-function openTasks(){const d=$("td").value;return liveTasks().filter(t=>!d||tdate(t)===d)}
-function fillTDates(){const ds=[...new Set(liveTasks().map(tdate))].sort(compareTaskDates);const td=new Date(Date.now()+8*36e5).toISOString().slice(0,10);
+function handoutItems(){return (typeof HANDOUTS==="undefined"?[]:HANDOUTS).filter(h=>h&&h.file&&h.kind==="handout")}
+function catalog(){return liveTasks().concat(handoutItems())}
+function openTasks(){const d=$("td").value;return catalog().filter(t=>!d||tdate(t)===d)}
+function fillTDates(){const ds=[...new Set(catalog().map(tdate))].sort(compareTaskDates);const td=new Date(Date.now()+8*36e5).toISOString().slice(0,10);
  $("td").innerHTML=ds.length?ds.map(d=>'<option value="'+d+'">'+(d==="other"?"Other":dlab(d)+(d===td?" (today)":""))+'</option>').join(""):'<option value="">No open tasks</option>';$("td").value=defaultTaskDate(ds)}
 $("td").onchange=()=>$("tgr").onchange();
 $("tgr").onchange=()=>{const g=$("tgr").value,subs=[...new Set(openTasks().filter(t=>norm(t.grade)===norm(g)||norm(t.grade)==="all").map(t=>t.subject))];
  $("tsj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":subs.length?"— Choose subject —":"No tasks right now")+'</option>'+subs.map(s=>'<option>'+esc(s)+'</option>').join("");$("tsj").disabled=!subs.length;showTasks()};
 $("tsj").onchange=showTasks;
-function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist");if(!s){box.innerHTML="";return}
+function handoutCard(t){const file=String(t.file||""),name=file.split("/").pop();return'<div class="card task handout"><div class="dl">Lesson Handout</div><h3>'+esc(t.title)+'</h3><div class="ins">'+esc(t.instructions)+'</div><a class="pdf" href="'+esc(file)+'" download="'+esc(name)+'" target="_blank" rel="noopener">Open/Download PDF</a></div>'}
+function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note=document.getElementById("tasknote");if(!s){box.innerHTML="";if(note)note.style.display="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
+ if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
  if(!ts.length){box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
- box.innerHTML=ts.map((t,i)=>{const done=store("adm_task_"+t.id)||store(tkey(t.id));return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(t.instructions)+'</div>'+
+ box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(t.instructions)+'</div>'+
  (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5)</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="thumbs"></div><div class="err"></div><button data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>inp.onchange=()=>{const th=inp.nextElementSibling;th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});
   inp.parentNode.querySelector(".err").textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""});
- box.querySelectorAll("button").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));taskStatus(ts)}
+ box.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));taskStatus(ts)}
 const ONCE="You already submitted this. Only one submission is allowed.";
 function tkey(id){return"adm_task_"+norm($("tnm").value)+"_"+id}
 function chk(nm,id){return get("action=checkTask&name="+encodeURIComponent(nm)+"&task="+encodeURIComponent(id)).then(j=>!!(j&&j.exists)).catch(()=>false)}
