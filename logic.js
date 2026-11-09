@@ -70,6 +70,43 @@ function defaultTaskDate(dates) {
   return (dates || []).indexOf("other") >= 0 ? "other" : "";
 }
 
+function canonGrade(v) {
+  var s = String(v == null ? "" : v).replace(/\s+/g, " ").trim().toLowerCase();
+  var m = s.match(/^grade\s+(\d{1,2})$/);
+  if (m) return "grade " + m[1];
+  return s;
+}
+
+function sameGrade(a, b) {
+  var x = canonGrade(a), y = canonGrade(b);
+  return !!x && x === y;
+}
+
+function sectionsForGrade(learners, grade) {
+  var seen = {}, out = [];
+  (learners || []).forEach(function (row) {
+    if (!row || !sameGrade(row.g, grade)) return;
+    var sec = String(row.s || "").trim();
+    if (!sec || seen[sec]) return;
+    seen[sec] = 1;
+    out.push(sec);
+  });
+  out.sort(function (a, b) { return a.localeCompare(b); });
+  return out;
+}
+
+function namesForSection(learners, grade, section) {
+  var sec = String(section || "").trim();
+  if (!sec) return [];
+  return (learners || []).filter(function (row) {
+    return row && row.n && sameGrade(row.g, grade) && String(row.s || "").trim() === sec;
+  }).slice().sort(function (a, b) {
+    var ka = String((a.l || a.n) + " " + (a.f || "")).trim();
+    var kb = String((b.l || b.n) + " " + (b.f || "")).trim();
+    return ka.localeCompare(kb);
+  });
+}
+
 function answerKeyHash(sid, index, choice) {
   var text = "bnhs|" + sid + "|" + index + "|" + choice + "|shs26";
   var x = 0x811c9dc5;
@@ -85,6 +122,10 @@ if (typeof module !== "undefined" && module.exports) {
     compareTaskDates: compareTaskDates,
     defaultTaskDate: defaultTaskDate,
     answerKeyHash: answerKeyHash,
-    parseRelease: parseRelease
+    parseRelease: parseRelease,
+    canonGrade: canonGrade,
+    sameGrade: sameGrade,
+    sectionsForGrade: sectionsForGrade,
+    namesForSection: namesForSection
   };
 }

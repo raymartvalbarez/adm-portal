@@ -120,6 +120,25 @@ test("Nov 9 learner text does not carry private keys or solved written tasks", (
   assert.equal((pr2.match(/SAMPLE DATA, made up for practice/g) || []).length, 4);
 });
 
+test("section and name lists follow the live learner shape", () => {
+  const roster = [
+    { g: "Grade 11", s: "ACADS", n: "Learner One", l: "One", f: "Learner" },
+    { g: "Grade  11", s: " ACADS ", n: "Learner Two", l: "Two", f: "Learner" },
+    { g: "Grade 12", s: "HUMSS", n: "Learner Three", l: "Three", f: "Learner" }
+  ];
+  assert.deepEqual(logic.sectionsForGrade(roster, "Grade 11"), ["ACADS"]);
+  assert.deepEqual(logic.sectionsForGrade(roster, "Grade 12"), ["HUMSS"]);
+  assert.deepEqual(logic.sectionsForGrade(roster, ""), []);
+  assert.equal(logic.namesForSection(roster, "Grade 11", "ACADS").length, 2);
+  assert.equal(logic.namesForSection(roster, "Grade 12", "HUMSS").length, 1);
+  assert.equal(logic.namesForSection(roster, "Grade 11", "HUMSS").length, 0);
+  assert.equal(logic.namesForSection(roster, "Grade 12", "").length, 0);
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /sectionsForGrade\(LS,gi\.value\)/);
+  assert.match(app, /namesForSection\(LS,gi\.value,ss\.value\)/);
+  assert.match(app, /secs\.length===1\?secs\[0\]:""/);
+});
+
 test("portal closes Nov 6 play links and cache-busts changed assets", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
@@ -133,9 +152,14 @@ test("portal closes Nov 6 play links and cache-busts changed assets", () => {
     assert.equal(html.includes("https://raymartvalbarez.github.io/" + game + "/\""), false);
     assert.equal(html.includes("https://raymartvalbarez.github.io/" + game + "\""), false);
   }
-  assert.match(html, /logic\.js\?v=20261109a/);
+  assert.match(html, /--tab-bar:90px/);
+  assert.match(html, /--tab-clear:48px/);
+  assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
+  assert.equal(html.includes("padding-bottom:calc(84px + env(safe-area-inset-bottom))"), false);
+  assert.match(html, /logic\.js\?v=20261109b/);
   assert.match(html, /data\.js\?v=20261109a/);
-  assert.match(html, /app\.js\?v=20261109a/);
+  assert.match(html, /app\.js\?v=20261109b/);
+  assert.match(html, /select option,select optgroup\{color:#17201b;background-color:#fff\}/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /defaultTaskDate/);
