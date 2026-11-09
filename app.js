@@ -77,12 +77,11 @@ function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document
 
 
 // ---------- TASKS ----------
-const TDATE={"G11-PR1-1":"2026-11-04","G12-CESC-1":"2026-11-04","G12-PR2-1":"2026-11-04","G12-ENT-1":"2026-11-04","G11-GM-2":"2026-11-05","G11-PR1-2":"2026-11-05","G12-PR2-2":"2026-11-05","G12-CESC-2":"2026-11-05","G12-ENT-2":"2026-11-05"};
-function tdate(t){return TDATE[t.id]||"other"}
+function tdate(t){return taskReleaseDate(t)}
 function liveTasks(){return(CFG.tasks||[]).filter(t=>!t.deadline||Date.now()<t.deadline)}
 function openTasks(){const d=$("td").value;return liveTasks().filter(t=>!d||tdate(t)===d)}
-function fillTDates(){const ds=[...new Set(liveTasks().map(tdate))].sort((a,b)=>a==="other"?1:b==="other"?-1:b.localeCompare(a));const td=new Date(Date.now()+8*36e5).toISOString().slice(0,10);
- $("td").innerHTML=ds.length?ds.map(d=>'<option value="'+d+'">'+(d==="other"?"Other":dlab(d)+(d===td?" (today)":""))+'</option>').join(""):'<option value="">No open tasks</option>';$("td").value=ds[0]||""}
+function fillTDates(){const ds=[...new Set(liveTasks().map(tdate))].sort(compareTaskDates);const td=new Date(Date.now()+8*36e5).toISOString().slice(0,10);
+ $("td").innerHTML=ds.length?ds.map(d=>'<option value="'+d+'">'+(d==="other"?"Other":dlab(d)+(d===td?" (today)":""))+'</option>').join(""):'<option value="">No open tasks</option>';$("td").value=defaultTaskDate(ds)}
 $("td").onchange=()=>$("tgr").onchange();
 $("tgr").onchange=()=>{const g=$("tgr").value,subs=[...new Set(openTasks().filter(t=>norm(t.grade)===norm(g)||norm(t.grade)==="all").map(t=>t.subject))];
  $("tsj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":subs.length?"— Choose subject —":"No tasks right now")+'</option>'+subs.map(s=>'<option>'+esc(s)+'</option>').join("");$("tsj").disabled=!subs.length;showTasks()};
