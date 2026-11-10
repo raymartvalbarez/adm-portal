@@ -88,7 +88,7 @@ $("td").onchange=()=>$("tgr").onchange();
 $("tgr").onchange=()=>{const g=$("tgr").value,subs=[...new Set(openTasks().filter(t=>norm(t.grade)===norm(g)||norm(t.grade)==="all").map(t=>t.subject))];
  $("tsj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":subs.length?"— Choose subject —":"No tasks right now")+'</option>'+subs.map(s=>'<option>'+esc(s)+'</option>').join("");$("tsj").disabled=!subs.length;showTasks()};
 $("tsj").onchange=showTasks;
-function handoutCard(t){const file=String(t.file||""),name=file.split("/").pop();return'<div class="card task handout"><div class="dl">Lesson Handout</div><h3>'+esc(t.title)+'</h3><div class="ins">'+esc(t.instructions)+'</div><a class="pdf" href="'+esc(file)+'" download="'+esc(name)+'" target="_blank" rel="noopener">Open/Download PDF</a></div>'}
+function handoutCard(t){const file=String(t.file||""),name=file.split("/").pop();return'<div class="card task handout"><div class="dl">Lesson Handout</div><h3>'+esc(t.title)+'</h3><div class="ins">'+esc(t.instructions)+'</div><a class="pdf" href="'+esc(file)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(file)+'" download="'+esc(name)+'">Download PDF</a><p class="note" style="text-align:left;margin-top:8px">If it does not open, tap and hold the button, then choose Open link or Download link.</p></div>'}
 function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note=document.getElementById("tasknote");if(!s){box.innerHTML="";if(note)note.style.display="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
