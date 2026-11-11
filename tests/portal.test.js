@@ -142,7 +142,8 @@ test("section and name lists follow the live learner shape", () => {
 test("games stay open and the tab bar still clears the page", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.match(html, /Open for ADM/);
+  assert.match(html, /Open for ADM · Nov\. 10 games through Nov\. 13, 2026, 11:59 PM/);
+  assert.match(html, /Still 1 try only/);
   assert.equal((html.match(/▶ Play/g) || []).length, 3);
   for (const game of ["integer-racer", "integer-archer", "treasure-diver"]) {
     assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/"'));
@@ -151,9 +152,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261111a/);
+  assert.match(html, /logic\.js\?v=20261111b/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261111a/);
+  assert.match(html, /app\.js\?v=20261111b/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
