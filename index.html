@@ -65,7 +65,21 @@ nav.tabs button svg{width:24px;height:24px}nav.tabs button.on{background:var(--s
 @media (prefers-color-scheme:dark){nav.tabs button.on{color:#86efac}}
 footer{text-align:center;font-size:.8rem;color:var(--muted);padding:6px 0 12px}
 .games{display:grid;gap:12px}.gm{display:flex;flex-direction:column;gap:10px}.gm .gt{display:flex;align-items:center;gap:12px}.gm .ic{font-size:2rem;width:56px;height:56px;flex:none;border-radius:16px;display:grid;place-items:center;background:var(--sel)}.gm h3{margin:0;font-size:1.1rem}.gm p{margin:2px 0 0;font-size:.88rem;color:var(--muted)}.gb{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gb a{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:14px;font-weight:800;text-decoration:none;font-size:1rem;text-align:center;padding:8px}.gb .pl{background:var(--brand);color:#fff}.gb .lb{background:var(--card);color:var(--brand);border:2px solid var(--brand)}
-</style></head><body>
+
+#svbar{display:none;background:linear-gradient(160deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:16px 16px 18px}#svbar .svinner{max-width:640px;margin:0 auto}#svbar h1{margin:2px 0 0;font-size:1.35rem;line-height:1.2}
+html.sv-mode #svbar,html.sv-mode #svbar[hidden]{display:block}
+html.sv-mode body>header,html.sv-mode .seg,html.sv-mode nav.tabs{display:none!important}
+html.sv-mode,html.sv-mode body{padding-bottom:16px;scroll-padding-bottom:16px}
+html.sv-mode main{margin-top:16px}
+html.sv-quiz #tasks,html.sv-quiz #games,html.sv-tasks #quiz,html.sv-tasks #games,html.sv-handouts #quiz,html.sv-handouts #games,html.sv-games #quiz,html.sv-games #tasks{display:none!important}
+html.sv-quiz #quiz,html.sv-tasks #tasks,html.sv-handouts #tasks,html.sv-games #games{display:block!important}
+html.sv-handouts .task:not(.handout){display:none}
+html.sv-games #games>h2.sec{display:none}
+</style><script>
+(function(){var V={quiz:1,tasks:1,games:1,handouts:1};function c(v){v=String(v||"").toLowerCase().trim();if(v==="task")v="tasks";if(v==="game")v="games";if(v==="handout")v="handouts";return V[v]?v:""}function pick(){try{var m=/(?:^|[?&])view=([^&]*)/.exec(location.search);if(m){var q=c(decodeURIComponent(m[1]));if(q)return q}var h=(location.hash||"").replace(/^#/,"");m=/(?:^|[?&])view=([^&]*)/.exec(h);if(m){q=c(decodeURIComponent(m[1]));if(q)return q}var ua=navigator.userAgent||"",app=ua.indexOf("Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")>=0||/BagoSHSADM(Student|Teacher)/i.test(ua),bare=c(h.split(/[?&]/)[0]);if(app&&bare)return bare}catch(e){}return""}var s=pick();if(s){document.documentElement.className=(document.documentElement.className+" sv-mode sv-"+s).trim();document.documentElement.setAttribute("data-view",s)}})();
+</script>
+</head><body>
+<div id="svbar" hidden><div class="svinner"><div class="school">Bago National High School</div><h1 id="svtitle">ADM</h1></div></div>
 <header>
 <div class="brandrow"><div class="logo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
 <div><div class="school">Bago National High School</div><h1>SHS ADM Portal</h1></div></div>
@@ -101,8 +115,8 @@ footer{text-align:center;font-size:.8rem;color:var(--muted);padding:6px 0 12px}
 <footer>ADM Portal by Sir Raymart Valbarez</footer>
 </main>
 <nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button></nav>
-<script src="logic.js?v=20261109b"></script>
+<script src="logic.js?v=20261111a"></script>
 <script src="config.js?v=20261105w"></script>
 <script src="data.js?v=20261110a"></script>
-<script src="app.js?v=20261110b"></script>
+<script src="app.js?v=20261111a"></script>
 </body></html>

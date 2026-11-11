@@ -115,6 +115,50 @@ function answerKeyHash(sid, index, choice) {
   return x.toString(16).padStart(8, "0");
 }
 
+
+var PORTAL_VIEWS = { quiz: "Quiz", tasks: "Tasks", games: "Games", handouts: "Handouts" };
+var ADM_APP_UA = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
+function canonView(v) {
+  v = String(v || "").toLowerCase().trim();
+  if (v === "task") v = "tasks";
+  if (v === "game") v = "games";
+  if (v === "handout") v = "handouts";
+  return PORTAL_VIEWS[v] ? v : "";
+}
+
+function isAdmAppUserAgent(ua) {
+  var s = String(ua || "");
+  if (s.indexOf(ADM_APP_UA) !== -1) return true;
+  if (/BagoSHSADM(Student|Teacher)/i.test(s)) return true;
+  return false;
+}
+
+function portalViewTitle(v) {
+  return PORTAL_VIEWS[canonView(v)] || "";
+}
+
+function resolvePortalView(search, hash, userAgent) {
+  search = String(search || "");
+  if (search.charAt(0) === "?") search = search.slice(1);
+  hash = String(hash || "");
+  if (hash.charAt(0) === "#") hash = hash.slice(1);
+  var m = /(?:^|[?&])view=([^&]*)/.exec(search);
+  if (m) {
+    var q = canonView(decodeURI(m[1]));
+    if (q) return q;
+  }
+  m = /(?:^|[?&])view=([^&]*)/.exec(hash);
+  if (m) {
+    var h = canonView(decodeURI(m[1]));
+    if (h) return h;
+  }
+  var bare = hash.split(/[?&]/)[0];
+  bare = canonView(bare);
+  if (bare && isAdmAppUserAgent(userAgent)) return bare;
+  return "";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -126,6 +170,12 @@ if (typeof module !== "undefined" && module.exports) {
     canonGrade: canonGrade,
     sameGrade: sameGrade,
     sectionsForGrade: sectionsForGrade,
-    namesForSection: namesForSection
+    namesForSection: namesForSection,
+    PORTAL_VIEWS: PORTAL_VIEWS,
+    ADM_APP_UA: ADM_APP_UA,
+    canonView: canonView,
+    isAdmAppUserAgent: isAdmAppUserAgent,
+    portalViewTitle: portalViewTitle,
+    resolvePortalView: resolvePortalView
   };
 }

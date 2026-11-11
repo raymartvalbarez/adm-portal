@@ -151,9 +151,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261109b/);
+  assert.match(html, /logic\.js\?v=20261111a/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261110a/);
+  assert.match(html, /app\.js\?v=20261111a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -192,4 +192,36 @@ test("Week 9 handouts group on Nov 10 and do not ask for a submission", () => {
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(app, /kind==="handout"/);
   assert.equal(app.includes("type:\"task\",taskId:t.id") || app.includes('type:"task"'), true);
+});
+
+test("single-section view is opt-in and hash alone does not change the browser portal", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(html, /sv-mode/);
+  assert.match(html, /id="svbar"/);
+  assert.match(html, /html\.sv-quiz #tasks/);
+  assert.match(html, /html\.sv-games #quiz/);
+  assert.match(app, /resolvePortalView/);
+  assert.match(app, /applySingleView/);
+  assert.match(app, /SV==="handouts"/);
+  const ua = logic.ADM_APP_UA;
+  assert.equal(logic.resolvePortalView("", "", ""), "");
+  assert.equal(logic.resolvePortalView("?foo=1", "#quiz", "Mozilla/5.0"), "");
+  assert.equal(logic.resolvePortalView("", "#tasks", "Mozilla/5.0 (Windows NT 10.0; Chrome/130)"), "");
+  assert.equal(logic.resolvePortalView("?view=quiz", "", "Mozilla/5.0"), "quiz");
+  assert.equal(logic.resolvePortalView("?view=tasks", "#quiz", ""), "tasks");
+  assert.equal(logic.resolvePortalView("?view=games", "", ""), "games");
+  assert.equal(logic.resolvePortalView("?view=handouts", "", ""), "handouts");
+  assert.equal(logic.resolvePortalView("?view=task", "", ""), "tasks");
+  assert.equal(logic.resolvePortalView("", "#view=quiz", ""), "quiz");
+  assert.equal(logic.resolvePortalView("", "#view=games", "Mozilla/5.0"), "games");
+  assert.equal(logic.resolvePortalView("", "#quiz", ua), "quiz");
+  assert.equal(logic.resolvePortalView("", "#tasks", ua), "tasks");
+  assert.equal(logic.resolvePortalView("", "#games", ua), "games");
+  assert.equal(logic.resolvePortalView("", "#handouts", ua), "handouts");
+  assert.equal(logic.resolvePortalView("", "#quiz", "BagoSHSADMStudent/1.5.0"), "quiz");
+  assert.equal(logic.resolvePortalView("?view=bogus", "#quiz", ""), "");
+  assert.equal(logic.portalViewTitle("games"), "Games");
+  assert.equal(logic.isAdmAppUserAgent(ua), true);
+  assert.equal(logic.isAdmAppUserAgent("Mozilla/5.0 (Linux; Android 14) Chrome/141.0.0.0 Mobile Safari/537.36"), false);
 });

@@ -11,8 +11,10 @@ function post(o){return fetch(API_URL,{method:"POST",headers:{"Content-Type":"te
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k)==="1";localStorage.setItem(k,"1")}catch(e){return false}}
 
 // ---------- tabs ----------
-function tab(w){$("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("sq").className=$("tq").className;$("st2").className=$("tt").className;$("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";try{location.hash=w}catch(e){}}
-$("tq").onclick=()=>CFG&&tab("quiz");$("tt").onclick=()=>CFG&&tab("tasks");$("sq").onclick=$("tq").onclick;$("st2").onclick=$("tt").onclick;
+const SV=(typeof resolvePortalView==="function")?resolvePortalView(location.search,location.hash,navigator.userAgent):"";
+function applySingleView(){if(!SV)return;const title=(typeof portalViewTitle==="function"&&portalViewTitle(SV))||({quiz:"Quiz",tasks:"Tasks",games:"Games",handouts:"Handouts"}[SV]||"ADM");const bar=$("svbar"),el=$("svtitle");if(el)el.textContent=title;if(bar)bar.hidden=false;document.title=title+" — SHS ADM Portal · Bago NHS"}
+function tab(w){if(SV==="games"){$("quiz").style.display="none";$("tasks").style.display="none";return}if(SV==="quiz")w="quiz";if(SV==="tasks"||SV==="handouts")w="tasks";$("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("sq").className=$("tq").className;$("st2").className=$("tt").className;$("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";if(!SV){try{location.hash=w}catch(e){}}}
+$("tq").onclick=()=>CFG&&!SV&&tab("quiz");$("tt").onclick=()=>CFG&&!SV&&tab("tasks");$("sq").onclick=$("tq").onclick;$("st2").onclick=$("tt").onclick;
 function notOpen(){$("loading").style.display="none";$("notopen").style.display="block"}
 
 // ---------- QUIZ ----------
@@ -80,7 +82,7 @@ function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document
 function tdate(t){return taskReleaseDate(t)}
 function liveTasks(){return(CFG.tasks||[]).filter(t=>!t.deadline||Date.now()<t.deadline)}
 function handoutItems(){return (typeof HANDOUTS==="undefined"?[]:HANDOUTS).filter(h=>h&&h.file&&h.kind==="handout")}
-function catalog(){return liveTasks().concat(handoutItems())}
+function catalog(){const all=liveTasks().concat(handoutItems());return SV==="handouts"?all.filter(t=>t.kind==="handout"):all}
 function openTasks(){const d=$("td").value;return catalog().filter(t=>!d||tdate(t)===d)}
 function fillTDates(){const ds=[...new Set(catalog().map(tdate))].sort(compareTaskDates);const td=new Date(Date.now()+8*36e5).toISOString().slice(0,10);
  $("td").innerHTML=ds.length?ds.map(d=>'<option value="'+d+'">'+(d==="other"?"Other":dlab(d)+(d===td?" (today)":""))+'</option>').join(""):'<option value="">No open tasks</option>';$("td").value=defaultTaskDate(ds)}
@@ -120,7 +122,7 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  bt.disabled=false;bt.textContent="Submit task"}
 
 // ---------- start ----------
-if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;setupNames();$("loading").style.display="none";fillDates();fillTDates();hcd();load("");tab(location.hash==="#tasks"?"tasks":"quiz")}).catch(notOpen);
+if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;setupNames();$("loading").style.display="none";fillDates();fillTDates();hcd();load("");const start=SV==="tasks"||SV==="handouts"?"tasks":(SV==="games"?"quiz":(location.hash==="#tasks"?"tasks":"quiz"));tab(start);applySingleView()}).catch(e=>{applySingleView();notOpen()});
 
 function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if(!LS.length)return;
  [["gr","sec","nm"],["tgr","tsec","tnm"]].forEach(([g,s,n])=>{const gi=$(g),si=$(s),ni=$(n),nl=ni.previousElementSibling,sl=si.previousElementSibling;
