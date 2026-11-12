@@ -80,7 +80,7 @@ function finish(nm,sc,sub){let score=0,per={},ans="";
  quizUpload(nm,sc,$("gr").value,sub)}
 function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document.createElement("div");c.className="card task";$("result").appendChild(c);
  if(store(k)){c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}
- c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><label class="f">📷 Add 1–5 photos (take a photo or choose from Gallery). You can add more one at a time.</label><input type="file" accept="image/*" multiple><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button id="qup" class="go">Upload output</button>';
+ c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><label class="f">📷 Add 1–5 photos (take a photo or choose from Gallery). You can add more one at a time.</label><input type="file" accept="image/*"'+MULTI+'><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button id="qup" class="go">Upload output</button>';
  const inp=c.querySelector("input"),er=c.querySelector(".err"),bt=c.querySelector("button.go");picker(c,inp);
  bt.onclick=async()=>{if(c._busy){er.textContent=PREP;return}const files=c._P.slice(0,MAXP);if(!files.length){er.textContent="Please add at least 1 photo.";return}
   if(!confirm("Upload "+files.length+" photo(s)? You can only upload once."))return;bt.disabled=true;er.textContent="";bt.textContent="Checking…";
@@ -111,7 +111,7 @@ function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
  if(!ts.length){TS=[];box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
  box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));const pdf=extractTaskPdf(t.instructions),instr=stripTaskPdfUrl(t.instructions,pdf);return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf)+
- (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5). Take a photo or choose from Gallery; you can add more one at a time.</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button class="go" data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
+ (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5). Take a photo or choose from Gallery; you can add more one at a time.</label><input type="file" accept="image/*"'+MULTI+' data-i="'+i+'"><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button class="go" data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>picker(inp.parentNode,inp));
  box.querySelectorAll("button.go[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));TS=ts;taskStatus(ts)}
 const ONCE="You already submitted this. Only one submission is allowed.";
@@ -124,32 +124,66 @@ function taskStatus(ts){const nm=$("tnm").value.trim();if(!nm)return;ts.forEach(
 let TS=[];function nameChanged(){if(!$("tsj").value||!TS.length)return;TS.forEach((t,i)=>{const c=$("tk"+i);if(c&&c.querySelector("button")&&store(tkey(t.id)))lockCard(c,t)});taskStatus(TS)}
 ["tnm","tsec"].forEach(id=>{const e=$(id);if(e){e.addEventListener("change",nameChanged)}});document.addEventListener("change",e=>{if(e.target&&e.target.id==="tnmL")nameChanged()});
 // ---------- PHOTO PICKER ----------
-// Photos are read and compressed the moment they are picked, so a broken photo (empty camera file,
-// unsupported HEIC, corrupted image) is caught right away with a clear message and is never sent.
-// Students can pick several times (camera, then gallery…) up to MAXP photos and remove any with ×.
-const MAXP=5,READERR="This photo couldn't be read. Retake it or choose it from Gallery.",
+// Photos are read the moment they are picked. Decoding is tried 3 ways (createImageBitmap with resize,
+// <img>+objectURL, FileReader dataURL) and downscaled to 1600px JPEG. If the phone can't decode it
+// (HEIC, huge 50MP photo, low memory) but the bytes look like a photo, the ORIGINAL is sent as-is
+// (up to MAXRAW). Only truly empty (0-byte) or non-photo files are rejected, with the real reason shown.
+// Inside the student app, the file input is single-select: app 1.6.1 and older returned the empty
+// camera temp file instead of Gallery photos whenever "multiple" was allowed. Students add photos one at a time.
+const MAXP=5,MAXRAW=7*1024*1024,INAPP=typeof window.AdmStudent!=="undefined",MULTI=INAPP?"":" multiple",
+ READERR="This photo couldn't be read. Retake it or choose it from Gallery.",
+ EMPTYERR="The photo came in empty, so it wasn't added. Take the photo with your phone's Camera app first, then tap the button and choose it from Gallery.",
  NETERR="Couldn't reach the server. Check your internet, then tap the button again. (Your photos are still here.)",
  PREP="Please wait, still preparing your photos…";
 function failMsg(j){return j.error===BUSY?BUSY:"Upload failed: "+(j.error||"please try again.")}
-function shrink(file){return new Promise((ok,no)=>{
- const bad=()=>no(Object.assign(new Error("unreadable"),{read:true}));
- if(!file||!file.size){bad();return}
- if(file.type&&!/^image\//i.test(file.type)){bad();return}
- const draw=(src,w,h,done)=>{try{if(!w||!h)return bad();const M=1600,r=Math.min(1,M/Math.max(w,h)),c=document.createElement("canvas");
-  c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));c.getContext("2d").drawImage(src,0,0,c.width,c.height);done&&done();
-  const d=c.toDataURL("image/jpeg",0.7);if(!d||d.length<200||d.indexOf("data:image/jpeg")!==0)return bad();ok(d.split(",")[1])}catch(e){bad()}};
- const viaBitmap=()=>{if(typeof createImageBitmap!=="function")return bad();createImageBitmap(file).then(b=>draw(b,b.width,b.height,()=>{})).catch(bad)};
- const im=new Image(),u=URL.createObjectURL(file),to=setTimeout(()=>{URL.revokeObjectURL(u);bad()},25000);
- im.onload=()=>{clearTimeout(to);draw(im,im.naturalWidth||im.width,im.naturalHeight||im.height,()=>URL.revokeObjectURL(u))};
- im.onerror=()=>{clearTimeout(to);URL.revokeObjectURL(u);viaBitmap()};im.src=u})}
+function photoErr(msg,code){return Object.assign(new Error(msg),{read:true,code:code||"read"})}
+function withTO(p,ms,what){return new Promise((ok,no)=>{const t=setTimeout(()=>no(new Error(what+" timed out")),ms);p.then(v=>{clearTimeout(t);ok(v)},e=>{clearTimeout(t);no(e)})})}
+function readBuf(f){if(f.arrayBuffer)return f.arrayBuffer();return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(r.error||new Error("read error"));r.readAsArrayBuffer(f)})}
+function readURL(b){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result||""));r.onerror=()=>no(r.error||new Error("read error"));r.readAsDataURL(b)})}
+function sniff(u){const s=(a,b)=>String.fromCharCode.apply(null,u.subarray(a,b));
+ if(u.length>2&&u[0]===0xFF&&u[1]===0xD8&&u[2]===0xFF)return"jpeg";
+ if(u.length>3&&u[0]===0x89&&s(1,4)==="PNG")return"png";
+ if(u.length>11&&s(0,4)==="RIFF"&&s(8,12)==="WEBP")return"webp";
+ if(u.length>3&&s(0,4)==="GIF8")return"gif";
+ if(u.length>1&&s(0,2)==="BM")return"bmp";
+ if(u.length>11&&s(4,8)==="ftyp"){const br=s(8,12).toLowerCase();if(/^(heic|heix|hevc|hevx|heim|heis|mif1|msf1)$/.test(br))return"heic";if(/^avi[fs]$/.test(br))return"avif"}
+ return""}
+const MIME={jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",bmp:"image/bmp",heic:"image/heic",avif:"image/avif"};
+function toJpeg(src,w,h){if(!w||!h)throw new Error("no size");const M=1600,r=Math.min(1,M/Math.max(w,h)),c=document.createElement("canvas");
+ c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(src,0,0,c.width,c.height);
+ const d=c.toDataURL("image/jpeg",0.72);c.width=c.height=1;if(!d||d.length<200||d.indexOf("data:image/jpeg")!==0)throw new Error("canvas export failed");return d.split(",")[1]}
+function viaImg(url){return new Promise((ok,no)=>{const im=new Image();im.onload=()=>{try{ok(toJpeg(im,im.naturalWidth||im.width,im.naturalHeight||im.height))}catch(e){no(e)}};im.onerror=()=>no(new Error("image decode failed"));im.src=url})}
+async function shrink(file){
+ if(!file)throw photoErr("no file received","empty");
+ let buf;try{buf=await withTO(readBuf(file),30000,"reading the file")}catch(e){throw photoErr("couldn't open the file ("+(e&&e.message||e)+")")}
+ if(!buf||!buf.byteLength)throw photoErr("empty file (0 bytes)","empty");
+ const kind=sniff(new Uint8Array(buf,0,Math.min(32,buf.byteLength))),looksImg=!!kind||/^image\//i.test(file.type||"");
+ if(!looksImg&&file.type)throw photoErr("not a photo ("+file.type+")","type");
+ const blob=new Blob([buf],{type:MIME[kind]||file.type||"image/jpeg"}),why=[];
+ if(kind!=="heic"){
+  if(typeof createImageBitmap==="function"){try{const b=await withTO(createImageBitmap(blob,{resizeWidth:1600,resizeQuality:"medium",imageOrientation:"from-image"}).catch(()=>createImageBitmap(blob)),30000,"bitmap");
+    try{return toJpeg(b,b.width,b.height)}finally{b.close&&b.close()}}catch(e){why.push("bitmap: "+(e&&e.message||e))}}
+  const u=URL.createObjectURL(blob);try{return await withTO(viaImg(u),30000,"image")}catch(e){why.push("img: "+(e&&e.message||e))}finally{URL.revokeObjectURL(u)}
+  if(buf.byteLength<=20*1024*1024){try{return await withTO(readURL(blob).then(viaImg),40000,"dataURL")}catch(e){why.push("dataURL: "+(e&&e.message||e))}}
+ }else why.push("HEIC can't be shrunk on this phone");
+ // Couldn't decode/shrink: send the original bytes if it looks like a photo and is small enough.
+ if(looksImg&&buf.byteLength<=MAXRAW){const d=await readURL(blob);const b64=d.split(",")[1]||"";if(b64.length>100)return b64}
+ const mb=(buf.byteLength/1048576).toFixed(1);
+ if(looksImg)throw photoErr("photo is "+mb+" MB and this phone couldn't shrink it ("+why.join("; ")+")","big");
+ throw photoErr("unknown file format, "+mb+" MB ("+why.join("; ")+")","type")}
 function picker(card,inp){const P=[];card._P=P;card._busy=0;const th=card.querySelector(".thumbs"),er=card.querySelector(".err"),pc=card.querySelector(".pcount");
- const draw=()=>{th.innerHTML="";P.forEach((b,i)=>{const w=document.createElement("div");w.className="th";const im=new Image();im.src="data:image/jpeg;base64,"+b;im.alt="Photo "+(i+1);
-   const x=document.createElement("button");x.type="button";x.className="rm";x.setAttribute("aria-label","Remove photo "+(i+1));x.textContent="×";x.onclick=()=>{P.splice(i,1);er.textContent="";draw()};w.append(im,x);th.appendChild(w)});
+ let dt=card.querySelector(".errd");if(!dt){dt=document.createElement("div");dt.className="errd note";dt.style.textAlign="left";er.after(dt)}
+ const draw=()=>{th.innerHTML="";P.forEach((b,i)=>{const w=document.createElement("div");w.className="th";const im=new Image();im.alt="Photo "+(i+1);
+   im.onerror=()=>{const t=document.createElement("div");t.textContent="📷 Photo "+(i+1);t.style.cssText="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:12px;border:2px solid var(--line);font-size:.8rem;text-align:center";im.replaceWith(t)};
+   im.src="data:image/jpeg;base64,"+b;
+   const x=document.createElement("button");x.type="button";x.className="rm";x.setAttribute("aria-label","Remove photo "+(i+1));x.textContent="×";x.onclick=()=>{P.splice(i,1);er.textContent="";dt.textContent="";draw()};w.append(im,x);th.appendChild(w)});
   if(pc)pc.textContent=P.length?P.length+" of "+MAXP+" photos added"+(P.length<MAXP?" · tap the button above to add more":" · maximum reached"):"";inp.disabled=P.length>=MAXP};
- inp.onchange=async()=>{const fs=[...(inp.files||[])];if(!fs.length)return;card._busy++;er.textContent="Preparing photos…";let bad=0,over=0;
-  for(const f of fs){if(P.length>=MAXP){over++;continue}try{P.push(await shrink(f));draw()}catch(e){bad++}}
+ inp.onchange=async()=>{const fs=[...(inp.files||[])];if(!fs.length)return;card._busy++;er.textContent="Preparing photos…";dt.textContent="";let bad=[],over=0;
+  for(const f of fs){if(P.length>=MAXP){over++;continue}try{P.push(await shrink(f));draw()}catch(e){bad.push(e)}}
   try{inp.value=""}catch(_){}card._busy--;draw();
-  er.textContent=[bad?(bad>1?bad+" photos couldn't be read. Retake them or choose them from Gallery.":READERR):"",over?"Only "+MAXP+" photos are allowed, so "+over+" extra photo"+(over>1?"s were":" was")+" not added.":""].filter(Boolean).join(" ")};
+  const allEmpty=bad.length&&bad.every(e=>e.code==="empty");
+  er.textContent=[bad.length?(allEmpty?EMPTYERR:bad.every(e=>e.code==="big")?"This photo is too big for this phone to shrink. Take a screenshot of the photo and add the screenshot instead.":(bad.length>1?bad.length+" photos couldn't be read. Retake them or choose them from Gallery.":READERR)):"",over?"Only "+MAXP+" photos are allowed, so "+over+" extra photo"+(over>1?"s were":" was")+" not added.":""].filter(Boolean).join(" ");
+  dt.textContent=bad.length?"Details: "+bad.map(e=>(e&&e.message)||String(e)).join(" | ")+(allEmpty&&INAPP?" — the in-app camera on app 1.6.1 or older can't save photos. Use Gallery, or install app 1.6.2.":""):""};
  draw()}
 async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").value.trim(),er=card.querySelector(".err"),bt=card.querySelector("button.go"),files=(card._P||[]).slice(0,MAXP);
  if(!nm||!sc){er.textContent="Please enter your name and section at the top first.";window.scrollTo(0,0);return}
