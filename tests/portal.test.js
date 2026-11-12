@@ -154,7 +154,7 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261112a/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112c/);
+  assert.match(html, /app\.js\?v=20261112d/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -251,7 +251,7 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112c/);
+  assert.match(html, /app\.js\?v=20261112d/);
   assert.match(html, /logic\.js\?v=20261112a/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
@@ -265,4 +265,14 @@ test("uploads retry automatically when the backend is busy (lock timeout HTML pa
   assert.match(app, /JSON\.parse\(txt\)/);
   assert.match(app, /type:"task"[^\n]*check:\(\)=>chk\(nm,t\.id\)/);
   assert.match(app, /type:"quizOutput"[^\n]*check:\(\)=>chk\(nm,"QUIZ-"\+sub\)/);
+});
+
+test("photo picker validates photos at pick time, allows 1-5 across picks, and separates error messages", () => {
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /const MAXP=5/);
+  assert.match(app, /This photo couldn't be read\. Retake it or choose it from Gallery\./);
+  assert.match(app, /function picker\(card,inp\)/);
+  assert.match(app, /if\(!file\|\|!file\.size\)/);
+  assert.doesNotMatch(app, /Upload failed\. Check your internet and try again\./);
+  assert.match(app, /querySelector\("button\.go"\)/);
 });

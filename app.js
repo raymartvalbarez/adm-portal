@@ -80,16 +80,15 @@ function finish(nm,sc,sub){let score=0,per={},ans="";
  quizUpload(nm,sc,$("gr").value,sub)}
 function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document.createElement("div");c.className="card task";$("result").appendChild(c);
  if(store(k)){c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}
- c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><label class="f">📷 Take a photo or choose from gallery</label><input type="file" accept="image/*" multiple><div class="thumbs"></div><div class="err"></div><button id="qup">Upload output</button>';
- const inp=c.querySelector("input"),er=c.querySelector(".err"),bt=c.querySelector("button");
- inp.onchange=()=>{const th=c.querySelector(".thumbs");th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});er.textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""};
- bt.onclick=async()=>{const files=[...inp.files].slice(0,5);if(!files.length){er.textContent="Please choose at least 1 photo.";return}
+ c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><label class="f">📷 Add 1–5 photos (take a photo or choose from Gallery). You can add more one at a time.</label><input type="file" accept="image/*" multiple><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button id="qup" class="go">Upload output</button>';
+ const inp=c.querySelector("input"),er=c.querySelector(".err"),bt=c.querySelector("button.go");picker(c,inp);
+ bt.onclick=async()=>{if(c._busy){er.textContent=PREP;return}const files=c._P.slice(0,MAXP);if(!files.length){er.textContent="Please add at least 1 photo.";return}
   if(!confirm("Upload "+files.length+" photo(s)? You can only upload once."))return;bt.disabled=true;er.textContent="";bt.textContent="Checking…";
-  if(await chk(nm,"QUIZ-"+sub)){store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}bt.textContent="Preparing photos…";
-  try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
+  if(await chk(nm,"QUIZ-"+sub)){store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}
+  try{const imgs=files;bt.textContent="Uploading… please wait, don't close this page";
    const j=await post({type:"quizOutput",name:nm,section:sc,grade:g,subject:sub,images:imgs},{check:()=>chk(nm,"QUIZ-"+sub),wait:busyMsg(bt)});
    if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · OUTPUT RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Uploaded":"Already uploaded")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(sub)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
-   er.textContent="Upload failed: "+(j.error||"please try again.")}catch(e){er.textContent="Upload failed. Check your internet and try again."}
+   er.textContent=failMsg(j)}catch(e){er.textContent=NETERR}
   bt.disabled=false;bt.textContent="Upload output"}}
 
 
@@ -112,10 +111,9 @@ function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
  if(!ts.length){TS=[];box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
  box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));const pdf=extractTaskPdf(t.instructions),instr=stripTaskPdfUrl(t.instructions,pdf);return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf)+
- (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5)</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="thumbs"></div><div class="err"></div><button data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
- box.querySelectorAll("input[type=file]").forEach(inp=>inp.onchange=()=>{const th=inp.nextElementSibling;th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});
-  inp.parentNode.querySelector(".err").textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""});
- box.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));TS=ts;taskStatus(ts)}
+ (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5). Take a photo or choose from Gallery; you can add more one at a time.</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button class="go" data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
+ box.querySelectorAll("input[type=file]").forEach(inp=>picker(inp.parentNode,inp));
+ box.querySelectorAll("button.go[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));TS=ts;taskStatus(ts)}
 const ONCE="You already submitted this. Only one submission is allowed.";
 function tkey(id){return"adm_task_"+norm($("tnm").value)+"_"+id}
 function chk(nm,id){return get("action=checkTask&name="+encodeURIComponent(nm)+"&task="+encodeURIComponent(id)).then(j=>!!(j&&j.exists)).catch(()=>false)}
@@ -125,19 +123,46 @@ function taskStatus(ts){const nm=$("tnm").value.trim();if(!nm)return;ts.forEach(
 // which used to wipe photos a student had already picked (typing a name then tapping Submit fired "change").
 let TS=[];function nameChanged(){if(!$("tsj").value||!TS.length)return;TS.forEach((t,i)=>{const c=$("tk"+i);if(c&&c.querySelector("button")&&store(tkey(t.id)))lockCard(c,t)});taskStatus(TS)}
 ["tnm","tsec"].forEach(id=>{const e=$(id);if(e){e.addEventListener("change",nameChanged)}});document.addEventListener("change",e=>{if(e.target&&e.target.id==="tnmL")nameChanged()});
-function shrink(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const M=1600,r=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement("canvas");
- c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",0.7).split(",")[1])};im.onerror=()=>no(new Error("bad image"));im.src=u})}
-async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").value.trim(),er=card.querySelector(".err"),bt=card.querySelector("button"),files=[...card.querySelector("input[type=file]").files].slice(0,5);
+// ---------- PHOTO PICKER ----------
+// Photos are read and compressed the moment they are picked, so a broken photo (empty camera file,
+// unsupported HEIC, corrupted image) is caught right away with a clear message and is never sent.
+// Students can pick several times (camera, then gallery…) up to MAXP photos and remove any with ×.
+const MAXP=5,READERR="This photo couldn't be read. Retake it or choose it from Gallery.",
+ NETERR="Couldn't reach the server. Check your internet, then tap the button again. (Your photos are still here.)",
+ PREP="Please wait, still preparing your photos…";
+function failMsg(j){return j.error===BUSY?BUSY:"Upload failed: "+(j.error||"please try again.")}
+function shrink(file){return new Promise((ok,no)=>{
+ const bad=()=>no(Object.assign(new Error("unreadable"),{read:true}));
+ if(!file||!file.size){bad();return}
+ if(file.type&&!/^image\//i.test(file.type)){bad();return}
+ const draw=(src,w,h,done)=>{try{if(!w||!h)return bad();const M=1600,r=Math.min(1,M/Math.max(w,h)),c=document.createElement("canvas");
+  c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));c.getContext("2d").drawImage(src,0,0,c.width,c.height);done&&done();
+  const d=c.toDataURL("image/jpeg",0.7);if(!d||d.length<200||d.indexOf("data:image/jpeg")!==0)return bad();ok(d.split(",")[1])}catch(e){bad()}};
+ const viaBitmap=()=>{if(typeof createImageBitmap!=="function")return bad();createImageBitmap(file).then(b=>draw(b,b.width,b.height,()=>{})).catch(bad)};
+ const im=new Image(),u=URL.createObjectURL(file),to=setTimeout(()=>{URL.revokeObjectURL(u);bad()},25000);
+ im.onload=()=>{clearTimeout(to);draw(im,im.naturalWidth||im.width,im.naturalHeight||im.height,()=>URL.revokeObjectURL(u))};
+ im.onerror=()=>{clearTimeout(to);URL.revokeObjectURL(u);viaBitmap()};im.src=u})}
+function picker(card,inp){const P=[];card._P=P;card._busy=0;const th=card.querySelector(".thumbs"),er=card.querySelector(".err"),pc=card.querySelector(".pcount");
+ const draw=()=>{th.innerHTML="";P.forEach((b,i)=>{const w=document.createElement("div");w.className="th";const im=new Image();im.src="data:image/jpeg;base64,"+b;im.alt="Photo "+(i+1);
+   const x=document.createElement("button");x.type="button";x.className="rm";x.setAttribute("aria-label","Remove photo "+(i+1));x.textContent="×";x.onclick=()=>{P.splice(i,1);er.textContent="";draw()};w.append(im,x);th.appendChild(w)});
+  if(pc)pc.textContent=P.length?P.length+" of "+MAXP+" photos added"+(P.length<MAXP?" · tap the button above to add more":" · maximum reached"):"";inp.disabled=P.length>=MAXP};
+ inp.onchange=async()=>{const fs=[...(inp.files||[])];if(!fs.length)return;card._busy++;er.textContent="Preparing photos…";let bad=0,over=0;
+  for(const f of fs){if(P.length>=MAXP){over++;continue}try{P.push(await shrink(f));draw()}catch(e){bad++}}
+  try{inp.value=""}catch(_){}card._busy--;draw();
+  er.textContent=[bad?(bad>1?bad+" photos couldn't be read. Retake them or choose them from Gallery.":READERR):"",over?"Only "+MAXP+" photos are allowed, so "+over+" extra photo"+(over>1?"s were":" was")+" not added.":""].filter(Boolean).join(" ")};
+ draw()}
+async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").value.trim(),er=card.querySelector(".err"),bt=card.querySelector("button.go"),files=(card._P||[]).slice(0,MAXP);
  if(!nm||!sc){er.textContent="Please enter your name and section at the top first.";window.scrollTo(0,0);return}
- if(!files.length){er.textContent="Please choose at least 1 photo.";return}
+ if(card._busy){er.textContent=PREP;return}
+ if(!files.length){er.textContent="Please add at least 1 photo.";return}
  if(!confirm("Submit "+files.length+" photo(s) for \""+t.title+"\"? You can only submit once."))return;
  bt.disabled=true;er.textContent="";bt.textContent="Checking…";
- if(store(tkey(t.id))||await chk(nm,t.id)){store(tkey(t.id),1);lockCard(card,t);return}bt.textContent="Preparing photos…";
- try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
+ if(store(tkey(t.id))||await chk(nm,t.id)){store(tkey(t.id),1);lockCard(card,t);return}
+ try{const imgs=files;bt.textContent="Uploading… please wait, don't close this page";
   const j=await post({type:"task",taskId:t.id,name:nm,section:sc,grade:$("tgr").value,images:imgs},{check:()=>chk(nm,t.id),wait:busyMsg(bt)});
   if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(tkey(t.id),1);card.innerHTML='<h3>'+esc(t.title)+'</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · TASK RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Submitted":"Already submitted")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(t.subject)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
-  er.textContent=j.closed?"This task is already closed.":"Upload failed: "+(j.error||"please try again.")}
- catch(e){er.textContent="Upload failed. Check your internet and try again."}
+  er.textContent=j.closed?"This task is already closed.":failMsg(j)}
+ catch(e){er.textContent=NETERR}
  bt.disabled=false;bt.textContent="Submit task"}
 
 // ---------- start ----------
