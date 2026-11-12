@@ -129,8 +129,9 @@ let TS=[];function nameChanged(){if(!$("tsj").value||!TS.length)return;TS.forEac
 // (HEIC, huge 50MP photo, low memory) but the bytes look like a photo, the ORIGINAL is sent as-is
 // (up to MAXRAW). Only truly empty (0-byte) or non-photo files are rejected, with the real reason shown.
 // Inside the student app, the file input is single-select: app 1.6.1 and older returned the empty
-// camera temp file instead of Gallery photos whenever "multiple" was allowed. Students add photos one at a time.
-const MAXP=5,MAXRAW=7*1024*1024,INAPP=typeof window.AdmStudent!=="undefined",MULTI=INAPP?"":" multiple",
+// camera temp file instead of Gallery photos whenever "multiple" was allowed, so those apps get one photo per pick.
+// App 1.6.3+ exposes AdmStudent.appVersion() and fixes multi-select, so it gets "multiple" again.
+const MAXP=5,MAXRAW=7*1024*1024,INAPP=typeof window.AdmStudent!=="undefined",APPV=(()=>{try{return INAPP&&typeof AdmStudent.appVersion==="function"?String(AdmStudent.appVersion()||""):""}catch(_){return""}})(),MULTI=INAPP&&!APPV?"":" multiple",
  READERR="This photo couldn't be read. Retake it or choose it from Gallery.",
  EMPTYERR="The photo came in empty, so it wasn't added. Take the photo with your phone's Camera app first, then tap the button and choose it from Gallery.",
  NETERR="Couldn't reach the server. Check your internet, then tap the button again. (Your photos are still here.)",
