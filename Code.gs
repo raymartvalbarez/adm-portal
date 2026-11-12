@@ -17,7 +17,8 @@ var TZ = 'Asia/Manila';
 var TABS = {
   scores: ['ADM Quiz Scores', ['Timestamp (Manila)','Name','Grade Level','Subject','Section','Score','Total','Percent','Topic breakdown','Answers']],
   sched:  ['Quiz Schedule',   ['Subject','Grade','Open (Y/N)','Deadline (Manila, yyyy-mm-dd hh:mm)','Notes']],
-  tasks:  ['Tasks',           ['Task ID','Grade','Subject','Title','Instructions','Deadline (Manila, yyyy-mm-dd hh:mm)','Active (Y/N)']],
+  // Columns H and I were added Nov 12, 2026 for the Teacher page (appended at the END; A-G never move).
+  tasks:  ['Tasks',           ['Task ID','Grade','Subject','Title','Instructions','Deadline (Manila, yyyy-mm-dd hh:mm)','Active (Y/N)','PDF Link','Opens (Manila, yyyy-mm-dd hh:mm)']],
   subs:   ['Task Submissions',['Timestamp (Manila)','Name','Grade Level','Subject','Section','Task ID','Task Title','File count','Drive folder link']]
 };
 
@@ -29,7 +30,9 @@ function tab_(key){
 }
 function rows_(key){
   var sh = tab_(key), last = sh.getLastRow(), w = TABS[key][1].length;
-  return last < 2 ? [] : sh.getRange(2, 1, last - 1, w).getValues();
+  if (last < 2) return [];
+  var mc = typeof sh.getMaxColumns === 'function' ? Math.min(w, sh.getMaxColumns()) : w; // tab may be narrower than the header list
+  return sh.getRange(2, 1, last - 1, mc).getValues().map(function(r){ while (r.length < w) r.push(''); return r; });
 }
 function norm_(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
 function out_(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -59,10 +62,13 @@ function schedule_(){
     return { subject: String(r[0]), grade: String(r[1]), open: yes_(r[2]), deadline: dl_(r[3]) };
   });
 }
-function tasks_(){
-  return rows_('tasks').filter(function(r){ return r[0] && yes_(r[6]); }).map(function(r){
-    return { id: String(r[0]), grade: String(r[1]), subject: String(r[2]), title: String(r[3]),
-             instructions: String(r[4]), deadline: dl_(r[5]) };
+function tasks_(){ // active tasks students can see: Active = Y and the open time (column I, optional) has passed
+  var now = Date.now();
+  return rows_('tasks').filter(function(r){ var o = dl_(r[8]); return r[0] && yes_(r[6]) && !(o && now < o); }).map(function(r){
+    var t = { id: String(r[0]), grade: String(r[1]), subject: String(r[2]), title: String(r[3]),
+              instructions: String(r[4]), deadline: dl_(r[5]) };
+    if (r[7]) t.pdf = String(r[7]);
+    return t;
   });
 }
 function folder_(parent, name){
@@ -95,6 +101,7 @@ function doGet(e){
   if (p.action === 'check')  return out_({ exists: quizDone_(p.name, p.subject) });
   if (p.action === 'checkTask') return out_({ exists: taskDone_(p.name, p.task) });
   if (p.action === 'nsedCheck') return out_({ exists: nsedDone_(p.name), deadline: nsedDeadline_(), nsedFolder: nsedRoot_().getUrl() });
+  if (/^teacher/i.test(String(p.action || ''))) return out_({ ok: false, teacher: true, error: 'Teacher actions are POST only and need the PIN.' });
   if (p.action === 'nsedInfo') return out_({ ok: true, nsedFolder: nsedRoot_().getUrl(), deadline: nsedDeadline_(), now: Date.now() });
   return out_({ ok: true, app: 'ADM Portal' });
 }
@@ -112,6 +119,7 @@ function doPost(e){
   // Nothing is kept when busy: photos saved by a busy request are trashed before answering.
   try {
     var d = JSON.parse(e.postData.contents);
+    if (TEACHER_ACTIONS_[d.action]) return out_(teacher_(d));
     var r = d.action === 'nsed' ? saveNsed_(d)
           : d.type === 'task' ? saveTask_(d)
           : d.type === 'quizOutput' ? saveQuizOutput_(d)
@@ -237,4 +245,132 @@ function saveNsed_(d){
   });
   if (!r || !r.ok) trash_(files);
   return r || BUSY_;
+}
+
+// ===== Teacher page (teacher.html): post tasks with an optional PDF, list tasks, open/close them =====
+// All teacher actions are POST only (the PIN never goes in a URL) and every answer carries teacher:true so the
+// page can tell a new backend from an old one. The PIN is stored only as a salted SHA-256 hash in the Script
+// Property TEACHER_PIN_HASH ("salt:hex"). It is never returned. teacherSetPin works only while no PIN is set.
+// To reset a forgotten PIN: Apps Script editor > Project Settings > Script Properties > delete TEACHER_PIN_HASH.
+var TEACHER_ACTIONS_ = { teacherStatus: 1, teacherSetPin: 1, teacherList: 1, teacherPost: 1, teacherToggle: 1 };
+var HANDOUT_FOLDER = 'Task Handouts';
+var MAX_PDF_BYTES = 10 * 1024 * 1024;
+var PIN_MAX_FAILS = 10, PIN_LOCK_SECS = 900;
+var TEACHER_SUBJECTS = { // exact Subject strings used in the Tasks tab -> code for the Task ID
+  'Grade 11': { 'General Mathematics': 'GM', 'Practical Research 1': 'PR1' },
+  'Grade 12': { 'Practical Research 2': 'PR2', 'Community Engagement, Solidarity and Citizenship (CESC)': 'CESC', 'Entrepreneurship': 'ENT' }
+};
+
+function hex_(bytes){ return bytes.map(function(b){ return ('0' + (b & 255).toString(16)).slice(-2); }).join(''); }
+function pinHash_(salt, pin){ return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + pin, Utilities.Charset.UTF_8)); }
+function pinStored_(){ return PropertiesService.getScriptProperties().getProperty('TEACHER_PIN_HASH') || ''; }
+function pinOk_(pin){
+  var cache = CacheService.getScriptCache(), fails = Number(cache.get('tpin_fail') || 0);
+  if (fails >= PIN_MAX_FAILS) return { ok: false, locked: true, error: 'Too many wrong PINs. Wait 15 minutes, then try again.' };
+  var st = pinStored_();
+  if (!st) return { ok: false, noPin: true, error: 'No teacher PIN is set yet.' };
+  var i = st.indexOf(':'), salt = st.slice(0, i), want = st.slice(i + 1), got = pinHash_(salt, String(pin || ''));
+  var diff = got.length ^ want.length;
+  for (var k = 0; k < Math.min(got.length, want.length); k++) diff |= got.charCodeAt(k) ^ want.charCodeAt(k);
+  if (!pin || diff) { cache.put('tpin_fail', String(fails + 1), PIN_LOCK_SECS); return { ok: false, badPin: true, error: 'Wrong PIN.' }; }
+  return { ok: true };
+}
+function teacher_(d){
+  var r;
+  if (d.action === 'teacherStatus') r = { ok: true, pinSet: !!pinStored_() };
+  else if (d.action === 'teacherSetPin') r = teacherSetPin_(d);
+  else {
+    var a = pinOk_(d.pin);
+    if (!a.ok) r = a;
+    else if (d.action === 'teacherList') r = teacherList_();
+    else if (d.action === 'teacherPost') r = teacherPost_(d);
+    else if (d.action === 'teacherToggle') r = teacherToggle_(d);
+  }
+  r = r || BUSY_;
+  var o = {}; for (var k in r) o[k] = r[k]; o.teacher = true;
+  return o;
+}
+function teacherSetPin_(d){
+  var pin = String(d.pin || '');
+  if (!/^\d{6,12}$/.test(pin)) return { ok: false, error: 'Use a PIN of 6 to 12 digits.' };
+  return withLock_(20000, function(){
+    if (pinStored_()) return { ok: false, pinSet: true, error: 'A teacher PIN is already set. It cannot be changed from the portal.' };
+    var salt = Utilities.getUuid().replace(/-/g, '');
+    PropertiesService.getScriptProperties().setProperty('TEACHER_PIN_HASH', salt + ':' + pinHash_(salt, pin));
+    return { ok: true, pinSet: true };
+  });
+}
+function txt_(v){ return v instanceof Date ? Utilities.formatDate(v, TZ, 'yyyy-MM-dd HH:mm') : String(v == null ? '' : v).trim(); }
+function teacherList_(){
+  var now = Date.now();
+  var list = rows_('tasks').filter(function(r){ return r[0]; }).map(function(r){
+    var dl = dl_(r[5]), op = dl_(r[8]), act = yes_(r[6]);
+    var status = !act ? 'closed' : (dl && now > dl) ? 'ended' : (op && now < op) ? 'scheduled' : 'open';
+    return { id: String(r[0]), grade: String(r[1]), subject: String(r[2]), title: String(r[3]),
+             active: act, deadline: txt_(r[5]), opens: txt_(r[8]), pdf: String(r[7] || ''), status: status };
+  });
+  return { ok: true, tasks: list.reverse(), now: now }; // newest rows first
+}
+function ymd_(v){ var m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[1] + m[2] + m[3] : ''; }
+function dt_(v){ // "yyyy-mm-ddThh:mm" or "yyyy-mm-dd hh:mm" -> "yyyy-mm-dd hh:mm" (Manila) or ''
+  var m = String(v || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] : '';
+}
+function handoutFolder_(){ return folderPath_(root_, [HANDOUT_FOLDER]); }
+function ensureTaskCols_(sh){
+  var w = TABS.tasks[1].length;
+  if (typeof sh.getMaxColumns === 'function' && sh.getMaxColumns() < w) sh.insertColumnsAfter(sh.getMaxColumns(), w - sh.getMaxColumns());
+  var head = sh.getRange(1, 1, 1, w).getValues()[0];
+  for (var c = 7; c < w; c++) if (!String(head[c] || '').trim()) sh.getRange(1, c + 1).setValue(TABS.tasks[1][c]);
+}
+function teacherPost_(d){
+  var grade = String(d.grade || '').trim(), subject = String(d.subject || '').trim();
+  var code = TEACHER_SUBJECTS[grade] && TEACHER_SUBJECTS[grade][subject];
+  if (!code) return { ok: false, error: 'Choose a grade and one of its subjects.' };
+  var day = ymd_(d.release); if (!day) return { ok: false, error: 'Release date is missing.' };
+  var title = String(d.title || '').trim().slice(0, 150), ins = String(d.instructions || '').trim().slice(0, 6000);
+  if (!title) return { ok: false, error: 'Title is required.' };
+  if (!ins) return { ok: false, error: 'Instructions are required.' };
+  var opens = dt_(d.opens) || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
+  var close = d.close ? dt_(d.close) : '';
+  if (d.close && !close) return { ok: false, error: 'Close date-time is not valid.' };
+  if (close && dl_(close) <= dl_(opens)) return { ok: false, error: 'Close time must be after the open time.' };
+  var file = null, pdf = '', warn = '';
+  if (d.pdf) {
+    var bytes = Utilities.base64Decode(String(d.pdf).replace(/^data:[^,]*,/, ''));
+    if (!bytes.length || bytes.length > MAX_PDF_BYTES) return { ok: false, error: 'The PDF must be 10 MB or smaller.' };
+    if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]) !== '%PDF-') return { ok: false, error: 'That file is not a PDF.' };
+    var f = handoutFolder_(); if (!f) return BUSY_;
+    var name = (String(d.pdfName || title).replace(/\.pdf$/i, '').replace(/[^A-Za-z0-9ñÑ\-_ ]+/g, '').trim().slice(0, 80) || 'Task') + '.pdf';
+    file = f.createFile(Utilities.newBlob(bytes, 'application/pdf', name)); // slow part, outside the lock
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+    catch (e) { warn = 'The PDF was saved, but Drive would not share it as "Anyone with the link". Students may not be able to open it. (' + e + ')'; }
+    pdf = 'https://drive.google.com/file/d/' + file.getId() + '/view?usp=sharing';
+  }
+  var r = withLock_(28000, function(){
+    var sh = tab_('tasks'); ensureTaskCols_(sh);
+    var ids = {}; rows_('tasks').forEach(function(x){ ids[String(x[0])] = 1; });
+    var base = grade.replace(/\D/g, '').replace(/^/, 'G') + '-' + code + '-' + day + '-', id = '';
+    for (var n = 0; n < 50 && (!id || ids[id]); n++) id = base + Utilities.getUuid().replace(/-/g, '').slice(0, 4).toUpperCase();
+    if (ids[id]) return { ok: false, error: 'Could not make a unique Task ID. Please try again.' };
+    var row = [id, grade, subject, title, ins, close, 'Y', pdf, opens];
+    var rg = sh.getRange(sh.getLastRow() + 1, 1, 1, row.length);
+    rg.setNumberFormat('@'); rg.setValues([row]); // plain text: dates stay "yyyy-mm-dd hh:mm", "=" is never a formula
+    return { ok: true, id: id, pdf: pdf, opens: opens, deadline: close };
+  });
+  if (!r || !r.ok) trash_(file ? [file] : []);
+  if (r && r.ok && warn) r.warning = warn;
+  return r || BUSY_;
+}
+function teacherToggle_(d){
+  var id = String(d.id || '').trim(), on = d.active === true || d.active === 'Y';
+  if (!id) return { ok: false, error: 'Task ID is missing.' };
+  return withLock_(20000, function(){
+    var rs = rows_('tasks');
+    for (var i = 0; i < rs.length; i++) if (String(rs[i][0]) === id) {
+      tab_('tasks').getRange(i + 2, 7).setValue(on ? 'Y' : 'N');
+      return { ok: true, id: id, active: on };
+    }
+    return { ok: false, error: 'Task not found.' };
+  });
 }

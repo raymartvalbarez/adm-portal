@@ -152,9 +152,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261112a/);
+  assert.match(html, /logic\.js\?v=20261112b/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112f/);
+  assert.match(html, /app\.js\?v=20261112g/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -246,13 +246,13 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.equal(logic.extractTaskPdf("No file here"), "");
   assert.equal(logic.extractTaskPdf("https://example.com/notes.txt"), "");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.match(app, /extractTaskPdf\(t\.instructions\)/);
+  assert.match(app, /taskPdfLinks\(t\)/);
   assert.match(app, /taskPdfButtons\(pdf\)/);
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112f/);
-  assert.match(html, /logic\.js\?v=20261112a/);
+  assert.match(html, /app\.js\?v=20261112g/);
+  assert.match(html, /logic\.js\?v=20261112b/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -280,4 +280,48 @@ test("photo picker validates photos at pick time, allows 1-5 across picks, and s
   assert.doesNotMatch(app, /accept="image\/\*" multiple/);
   assert.doesNotMatch(app, /Upload failed\. Check your internet and try again\./);
   assert.match(app, /querySelector\("button\.go"\)/);
+});
+
+test("Drive PDF links from the PDF Link column become view + download buttons; .pdf in instructions still works", () => {
+  const id = "1AbCdEfGhIjKlMnOpQrStUvWxYz";
+  const view = "https://drive.google.com/file/d/" + id + "/view?usp=sharing";
+  assert.equal(logic.driveFileId(view), id);
+  assert.equal(logic.driveFileId("https://drive.google.com/open?id=" + id), id);
+  assert.equal(logic.driveFileId("https://example.com/file/d/" + id), "");
+  assert.deepEqual(logic.drivePdfLinks(view), { view: "https://drive.google.com/file/d/" + id + "/view", download: "https://drive.google.com/uc?export=download&id=" + id });
+  const t = logic.taskPdfLinks({ pdf: view, instructions: "Do it." });
+  assert.equal(t.view, "https://drive.google.com/file/d/" + id + "/view");
+  assert.equal(t.download, "https://drive.google.com/uc?export=download&id=" + id);
+  assert.equal(t.strip, "");
+  const old = "https://raymartvalbarez.github.io/adm-portal/handouts/Findings_SCR_Activity_Nov12.pdf";
+  const t2 = logic.taskPdfLinks({ instructions: "Study it. " + old });
+  assert.deepEqual(t2, { view: old, download: old, name: "Findings_SCR_Activity_Nov12.pdf", strip: old });
+  assert.equal(logic.taskPdfLinks({ instructions: "No file" }), null);
+  assert.equal(logic.taskPdfLinks({ pdf: "", instructions: "No file" }), null);
+  assert.equal(logic.taskPdfLinks({ pdf: "javascript:alert(1)", instructions: "x" }), null);
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /taskPdfLinks\(t\)/);
+  assert.match(app, /p\.download/);
+});
+
+test("teacher page is standalone, PIN-gated, and not linked from student pages", () => {
+  const html = fs.readFileSync(path.join(root, "teacher.html"), "utf8");
+  const js = fs.readFileSync(path.join(root, "teacher.js"), "utf8");
+  const index = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.equal(/teacher\.html/.test(index) || /teacher\.html/.test(app), false);
+  assert.match(html, /name="viewport"/);
+  assert.match(html, /noindex/);
+  assert.match(html, /teacher\.js\?v=\d{8}[a-z]/);
+  assert.match(html, /config\.js/);
+  for (const id of ["g", "s", "rel", "ti", "ins", "pdf", "op", "cl", "pbtn", "tl", "pin", "np1", "notready"]) assert.match(html, new RegExp('id="' + id + '"'));
+  assert.match(html, /type="datetime-local" id="op"/);
+  assert.match(html, /accept="application\/pdf,\.pdf"/);
+  for (const a of ["teacherStatus", "teacherSetPin", "teacherList", "teacherPost", "teacherToggle"]) assert.match(js, new RegExp(a));
+  assert.match(js, /j\.teacher!==true/); // old backend -> "not set up yet"
+  assert.match(js, /10\*1024\*1024/);
+  assert.equal(/localStorage/.test(js), false); // PIN stays in this tab only
+  assert.match(js, /"Community Engagement, Solidarity and Citizenship \(CESC\)"/);
+  assert.match(js, /method:"POST"/);
+  assert.equal(/\?action=teacher|action=teacher/.test(js.replace(/action:"teacher/g, "")), false); // never in a URL
 });

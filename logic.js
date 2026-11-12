@@ -176,6 +176,37 @@ function stripTaskPdfUrl(text, url) {
   return s.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/* Drive file links (Teacher page uploads) -> view + direct download URLs. Returns null for non-Drive links. */
+function driveFileId(url) {
+  var s = String(url == null ? "" : url).trim();
+  if (!/^https:\/\/(drive|docs)\.google\.com\//i.test(s)) return "";
+  var m = s.match(/\/file\/d\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? m[1] : "";
+}
+
+function drivePdfLinks(url) {
+  var id = driveFileId(url);
+  if (!id) return null;
+  return {
+    view: "https://drive.google.com/file/d/" + id + "/view",
+    download: "https://drive.google.com/uc?export=download&id=" + id
+  };
+}
+
+/* PDF buttons for a task: the PDF Link column (t.pdf) wins, else a .pdf URL inside the instructions. */
+function taskPdfLinks(t) {
+  t = t || {};
+  var col = String(t.pdf == null ? "" : t.pdf).trim();
+  if (col) {
+    var d = drivePdfLinks(col);
+    if (d) return { view: d.view, download: d.download, name: "", strip: "" };
+    if (/^https:\/\//i.test(col) || /^(\.\/)?handouts\//i.test(col)) return { view: col, download: col, name: col.split("?")[0].split("/").pop(), strip: "" };
+  }
+  var u = extractTaskPdf(t.instructions);
+  if (!u) return null;
+  return { view: u, download: u, name: String(u).split("?")[0].split("/").pop(), strip: u };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -195,6 +226,9 @@ if (typeof module !== "undefined" && module.exports) {
     portalViewTitle: portalViewTitle,
     resolvePortalView: resolvePortalView,
     extractTaskPdf: extractTaskPdf,
-    stripTaskPdfUrl: stripTaskPdfUrl
+    stripTaskPdfUrl: stripTaskPdfUrl,
+    driveFileId: driveFileId,
+    drivePdfLinks: drivePdfLinks,
+    taskPdfLinks: taskPdfLinks
   };
 }
