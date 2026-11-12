@@ -159,6 +159,23 @@ function resolvePortalView(search, hash, userAgent) {
   return "";
 }
 
+function extractTaskPdf(text) {
+  var s = String(text == null ? "" : text);
+  var m = s.match(/https:\/\/[^\s"'<>]+?\.pdf(?:\?[^\s"'<>]*)?/i);
+  if (m) return m[0];
+  m = s.match(/(?:^|[\s"'<>(])((?:\.\/)?handouts\/[^\s"'<>]+\.pdf(?:\?[^\s"'<>]*)?)/i);
+  if (m) return m[1];
+  return "";
+}
+
+function stripTaskPdfUrl(text, url) {
+  var s = String(text == null ? "" : text);
+  if (!url) return s;
+  var escaped = String(url).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  s = s.replace(new RegExp("\\s*" + escaped + "\\s*", "gi"), " ");
+  return s.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -176,6 +193,8 @@ if (typeof module !== "undefined" && module.exports) {
     canonView: canonView,
     isAdmAppUserAgent: isAdmAppUserAgent,
     portalViewTitle: portalViewTitle,
-    resolvePortalView: resolvePortalView
+    resolvePortalView: resolvePortalView,
+    extractTaskPdf: extractTaskPdf,
+    stripTaskPdfUrl: stripTaskPdfUrl
   };
 }

@@ -152,9 +152,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261111b/);
+  assert.match(html, /logic\.js\?v=20261112a/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261111b/);
+  assert.match(html, /app\.js\?v=20261112a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -225,4 +225,36 @@ test("single-section view is opt-in and hash alone does not change the browser p
   assert.equal(logic.portalViewTitle("games"), "Games");
   assert.equal(logic.isAdmAppUserAgent(ua), true);
   assert.equal(logic.isAdmAppUserAgent("Mozilla/5.0 (Linux; Android 14) Chrome/141.0.0.0 Mobile Safari/537.36"), false);
+});
+
+test("G12 PR2 Nov 12 activity id groups on Nov 12 and is the default date", () => {
+  assert.equal(logic.taskReleaseDate({ id: "G12-PR2-20261112-SCR" }), "2026-11-12");
+  const dates = ["2026-11-04", "other", "2026-11-09", "2026-11-10", "2026-11-12"];
+  assert.equal(logic.defaultTaskDate(dates), "2026-11-12");
+  assert.deepEqual(dates.slice().sort(logic.compareTaskDates), ["2026-11-12", "2026-11-10", "2026-11-09", "2026-11-04", "other"]);
+});
+
+test("task instructions can surface a PDF download without showing the raw URL", () => {
+  const httpsUrl = "https://raymartvalbarez.github.io/adm-portal/handouts/Findings_SCR_Activity_Nov12.pdf";
+  const instr = "Download the PDF activity and study Part A (sample). Answer Part B on paper: write the summary, conclusion and recommendations. Then upload clear photos of your output here. " + httpsUrl;
+  assert.equal(logic.extractTaskPdf(instr), httpsUrl);
+  const shown = logic.stripTaskPdfUrl(instr, httpsUrl);
+  assert.equal(shown.includes("http"), false);
+  assert.equal(shown.includes(".pdf"), false);
+  assert.match(shown, /upload clear photos of your output here\./i);
+  assert.equal(logic.extractTaskPdf("See handouts/Findings_SCR_Activity_Nov12.pdf please"), "handouts/Findings_SCR_Activity_Nov12.pdf");
+  assert.equal(logic.extractTaskPdf("No file here"), "");
+  assert.equal(logic.extractTaskPdf("https://example.com/notes.txt"), "");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /extractTaskPdf\(t\.instructions\)/);
+  assert.match(app, /taskPdfButtons\(pdf\)/);
+  assert.match(app, /Open PDF/);
+  assert.match(app, /Download PDF/);
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.match(html, /app\.js\?v=20261112a/);
+  assert.match(html, /logic\.js\?v=20261112a/);
+  const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
+  assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+  const handouts = fs.readdirSync(path.join(root, "handouts"));
+  assert.equal(handouts.some((n) => /teacher|key/i.test(n)), false);
 });
