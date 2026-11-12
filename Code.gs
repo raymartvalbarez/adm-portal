@@ -94,7 +94,10 @@ function doGet(e){
 }
 
 function doPost(e){
-  var lock = LockService.getScriptLock(); lock.waitLock(25000);
+  // When a whole class uploads at once, waiting for the lock can time out. Answer with JSON (busy) instead of
+  // an HTML error page so the portal can retry automatically. Nothing is saved when busy.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(28000)) return out_({ ok: false, busy: true, error: 'Server busy, please try again.' });
   try {
     var d = JSON.parse(e.postData.contents);
     return out_(d.action === 'nsed' ? saveNsed_(d) : d.type === 'task' ? saveTask_(d) : d.type === 'quizOutput' ? saveQuizOutput_(d) : saveQuiz_(d));

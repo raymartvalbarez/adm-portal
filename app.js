@@ -7,7 +7,22 @@ function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").t
 function fmt(ms){return new Date(ms).toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Manila"})}
 function left(ms){const m=Math.ceil((ms-Date.now())/60000);if(m<=0)return"closed";const d=Math.floor(m/1440),h=Math.floor(m%1440/60);return(d?d+"d ":"")+h+"h "+(m%60)+"m left"}
 function get(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);return fetch(API_URL+"?"+q,{cache:"no-store",signal:c.signal}).then(r=>r.json()).finally(()=>clearTimeout(t))}
-function post(o){return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)}).then(r=>r.json())}
+// POST with automatic retry. When many students upload at once the Apps Script backend answers
+// with an HTML "lock timeout" page instead of JSON (nothing was saved), so wait a few seconds and try again.
+// opts.check(): returns true if the server already has this submission (stops duplicate uploads).
+// opts.wait(n,max): shows "retrying" status to the student.
+const BUSY="The server is busy because many classmates are uploading at the same time. Please wait 1 minute, then tap the button again.";
+async function post(o,opts){opts=opts||{};const max=opts.tries||8,body=JSON.stringify(o);let lastNet=null;
+ for(let a=1;a<=max;a++){
+  try{const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body});const txt=await r.text();
+   let j=null;try{j=JSON.parse(txt)}catch(_){}lastNet=null;if(j&&!j.busy)return j}
+  catch(e){lastNet=e}
+  if(a===max)break;
+  if(opts.check){try{if(await opts.check())return{ok:true,recovered:true,count:(o.images||[]).length}}catch(_){}}
+  if(opts.wait)opts.wait(a+1,max);
+  await new Promise(r=>setTimeout(r,3000+Math.random()*5000+a*2000))}
+ if(lastNet)throw lastNet;return{ok:false,error:BUSY}}
+const busyMsg=(bt)=>(n,m)=>{bt.textContent="Server busy, retrying automatically ("+n+"/"+m+")… don't close this page"};
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k)==="1";localStorage.setItem(k,"1")}catch(e){return false}}
 
 // ---------- tabs ----------
@@ -59,7 +74,7 @@ function finish(nm,sc,sub){let score=0,per={},ans="";
  const pct=Math.round(score/ITEMS.length*100),tb=Object.keys(per).map(k=>k+": "+per[k][0]+"/"+per[k][1]).join("; ");
  $("result").innerHTML='<div class="card score"><div class="cel">'+(pct>=75?"🎉🏆🎉":pct>=50?"👏✨":"💪📚")+'</div><div class="msg">'+(pct>=75?"Great job!":pct>=50?"Well done!":"Keep going, you can do it!")+'</div><div class="note">SHS ADM PORTAL — BAGO NHS · RESULT</div><div class="row"><b style="font-size:1rem;display:inline">'+esc(sub)+'</b></div><b>'+score+' / '+ITEMS.length+'</b><div class="row">'+pct+'%</div><div class="row"><b style="font-size:1.1rem;display:inline">'+esc(nm)+'</b></div><div class="row">'+esc($("gr").value)+' · Section: '+esc(sc)+'</div><div class="row">'+fmt(Date.now())+'</div><table>'+Object.keys(per).map(k=>'<tr><td>'+esc(k)+'</td><td>'+per[k][0]+' / '+per[k][1]+'</td></tr>').join("")+'</table><p class="note" id="st">Saving score…</p></div>';
  window.scrollTo(0,0);$("cd").style.display="none";
- post({type:"quiz",name:nm,grade:$("gr").value,subject:sub,section:sc,score:score,total:ITEMS.length,percent:pct,topicBreakdown:tb,answers:ans})
+ post({type:"quiz",name:nm,grade:$("gr").value,subject:sub,section:sc,score:score,total:ITEMS.length,percent:pct,topicBreakdown:tb,answers:ans},{wait:(n,m)=>{const e=$("st");if(e)e.textContent="Server busy, saving again ("+n+"/"+m+")…"}})
  .then(j=>{$("st").innerHTML=j.ok?"<b class='ok'>✓ Score saved</b>":(j.dup||j.error==="already_submitted")?"<b class='err'>You already submitted this. Only one submission is allowed. Only the first submission counts.</b>":j.closed?"<b class='err'>Quiz closed. Score not recorded.</b>":"<b class='err'>Couldn't save — please screenshot this card.</b>"})
  .catch(()=>{$("st").innerHTML="<b class='err'>Couldn't save — please screenshot this card and send it to your teacher.</b>"});
  quizUpload(nm,sc,$("gr").value,sub)}
@@ -72,7 +87,7 @@ function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document
   if(!confirm("Upload "+files.length+" photo(s)? You can only upload once."))return;bt.disabled=true;er.textContent="";bt.textContent="Checking…";
   if(await chk(nm,"QUIZ-"+sub)){store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}bt.textContent="Preparing photos…";
   try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
-   const j=await post({type:"quizOutput",name:nm,section:sc,grade:g,subject:sub,images:imgs});
+   const j=await post({type:"quizOutput",name:nm,section:sc,grade:g,subject:sub,images:imgs},{check:()=>chk(nm,"QUIZ-"+sub),wait:busyMsg(bt)});
    if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · OUTPUT RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Uploaded":"Already uploaded")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(sub)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
    er.textContent="Upload failed: "+(j.error||"please try again.")}catch(e){er.textContent="Upload failed. Check your internet and try again."}
   bt.disabled=false;bt.textContent="Upload output"}}
@@ -95,18 +110,21 @@ function taskPdfButtons(url){if(!url)return"";const name=String(url).split("?")[
 function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note=document.getElementById("tasknote");if(!s){box.innerHTML="";if(note)note.style.display="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
- if(!ts.length){box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
+ if(!ts.length){TS=[];box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
  box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));const pdf=extractTaskPdf(t.instructions),instr=stripTaskPdfUrl(t.instructions,pdf);return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf)+
  (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5)</label><input type="file" accept="image/*" multiple data-i="'+i+'"><div class="thumbs"></div><div class="err"></div><button data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>inp.onchange=()=>{const th=inp.nextElementSibling;th.innerHTML="";[...inp.files].slice(0,5).forEach(f=>{const im=new Image();im.src=URL.createObjectURL(f);th.appendChild(im)});
   inp.parentNode.querySelector(".err").textContent=inp.files.length>5?"Only the first 5 photos will be sent.":""});
- box.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));taskStatus(ts)}
+ box.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));TS=ts;taskStatus(ts)}
 const ONCE="You already submitted this. Only one submission is allowed.";
 function tkey(id){return"adm_task_"+norm($("tnm").value)+"_"+id}
 function chk(nm,id){return get("action=checkTask&name="+encodeURIComponent(nm)+"&task="+encodeURIComponent(id)).then(j=>!!(j&&j.exists)).catch(()=>false)}
 function lockCard(card,t){card.innerHTML='<h3>'+esc(t.title)+'</h3><p class="ok"><b>✅ Submitted — '+ONCE+'</b></p>'}
 function taskStatus(ts){const nm=$("tnm").value.trim();if(!nm)return;ts.forEach((t,i)=>{const c=$("tk"+i);if(!c||!c.querySelector("button"))return;chk(nm,t.id).then(x=>{if(x&&$("tnm").value.trim()===nm){store(tkey(t.id),1);lockCard(c,t)}})})}
-["tnm","tsec"].forEach(id=>{const e=$(id);if(e){e.addEventListener("change",showTasks)}});document.addEventListener("change",e=>{if(e.target&&e.target.id==="tnmL")showTasks()});
+// Name/section changes only re-check "already submitted" locks; they no longer rebuild the task cards,
+// which used to wipe photos a student had already picked (typing a name then tapping Submit fired "change").
+let TS=[];function nameChanged(){if(!$("tsj").value||!TS.length)return;TS.forEach((t,i)=>{const c=$("tk"+i);if(c&&c.querySelector("button")&&store(tkey(t.id)))lockCard(c,t)});taskStatus(TS)}
+["tnm","tsec"].forEach(id=>{const e=$(id);if(e){e.addEventListener("change",nameChanged)}});document.addEventListener("change",e=>{if(e.target&&e.target.id==="tnmL")nameChanged()});
 function shrink(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const M=1600,r=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement("canvas");
  c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",0.7).split(",")[1])};im.onerror=()=>no(new Error("bad image"));im.src=u})}
 async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").value.trim(),er=card.querySelector(".err"),bt=card.querySelector("button"),files=[...card.querySelector("input[type=file]").files].slice(0,5);
@@ -116,7 +134,7 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  bt.disabled=true;er.textContent="";bt.textContent="Checking…";
  if(store(tkey(t.id))||await chk(nm,t.id)){store(tkey(t.id),1);lockCard(card,t);return}bt.textContent="Preparing photos…";
  try{const imgs=[];for(const f of files)imgs.push(await shrink(f));bt.textContent="Uploading… please wait, don't close this page";
-  const j=await post({type:"task",taskId:t.id,name:nm,section:sc,grade:$("tgr").value,images:imgs});
+  const j=await post({type:"task",taskId:t.id,name:nm,section:sc,grade:$("tgr").value,images:imgs},{check:()=>chk(nm,t.id),wait:busyMsg(bt)});
   if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(tkey(t.id),1);card.innerHTML='<h3>'+esc(t.title)+'</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · TASK RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Submitted":"Already submitted")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(t.subject)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
   er.textContent=j.closed?"This task is already closed.":"Upload failed: "+(j.error||"please try again.")}
  catch(e){er.textContent="Upload failed. Check your internet and try again."}

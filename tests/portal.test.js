@@ -154,7 +154,7 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261112a/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112a/);
+  assert.match(html, /app\.js\?v=20261112c/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -251,10 +251,18 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112a/);
+  assert.match(html, /app\.js\?v=20261112c/);
   assert.match(html, /logic\.js\?v=20261112a/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
   assert.equal(handouts.some((n) => /teacher|key/i.test(n)), false);
+});
+
+test("uploads retry automatically when the backend is busy (lock timeout HTML page)", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(app, /async function post\(o,opts\)/);
+  assert.match(app, /JSON\.parse\(txt\)/);
+  assert.match(app, /type:"task"[^\n]*check:\(\)=>chk\(nm,t\.id\)/);
+  assert.match(app, /type:"quizOutput"[^\n]*check:\(\)=>chk\(nm,"QUIZ-"\+sub\)/);
 });
