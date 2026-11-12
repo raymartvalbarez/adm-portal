@@ -319,7 +319,16 @@ test("teacher page is PIN-gated, linked discreetly from the student home footer,
   assert.match(html, /config\.js/);
   for (const id of ["g", "s", "rel", "ti", "ins", "pdf", "op", "cl", "pbtn", "tl", "pin", "np1", "notready"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /type="datetime-local" id="op"/);
-  assert.match(html, /accept="application\/pdf,\.pdf"/);
+  assert.match(html, /accept="\.pdf,application\/pdf"/);
+  assert.match(html, /<input type="file" id="pdf" accept="\.pdf,application\/pdf">/);
+  assert.match(html, /<label class="pdfbtn" for="pdf">/);
+  assert.doesNotMatch(html, /#pdf\{[^}]*display:\s*none/);
+  assert.doesNotMatch(html, /::file-selector-button\{display:block;width:100%/);
+  assert.match(js, /function isPdfFile/);
+  assert.match(js, /String\(f\.type\|\|""\)\.toLowerCase\(\)==="application\/pdf"/);
+  assert.match(js, /Selected: /);
+  assert.match(js, /Please choose a PDF of 10 MB or less/);
+  assert.match(html, /teacher\.js\?v=20261112b/);
   for (const a of ["teacherStatus", "teacherSetPin", "teacherList", "teacherPost", "teacherToggle"]) assert.match(js, new RegExp(a));
   assert.match(js, /j\.teacher!==true/); // old backend -> "not set up yet"
   assert.match(js, /10\*1024\*1024/);

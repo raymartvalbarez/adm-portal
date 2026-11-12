@@ -52,12 +52,20 @@ $("lock").onclick=()=>{PIN="";try{sessionStorage.removeItem("adm_tpin")}catch(_)
 
 function fillSubjects(){const g=$("g").value,s=$("s"),prev=s.value;s.innerHTML=SUBJECTS[g].map(x=>'<option>'+esc(x)+'</option>').join("");if(SUBJECTS[g].includes(prev))s.value=prev}
 $("g").onchange=fillSubjects;
-function resetForm(){fillSubjects();const n=manilaNow();$("rel").value=n.slice(0,10);$("op").value=n;$("cl").value="";$("ti").value="";$("ins").value="";$("pdf").value="";$("pdfinfo").textContent="Student copy only. Never upload a teacher key."}
-$("pdf").onchange=()=>{const f=$("pdf").files[0],i=$("pdfinfo");if(!f){i.textContent="Student copy only. Never upload a teacher key.";return}
- const mb=(f.size/1048576).toFixed(1);
- if(f.size>MAXPDF){i.innerHTML='<b class="err">'+esc(f.name)+" is "+mb+" MB. The limit is 10 MB.</b>";return}
- if(/key|answer/i.test(f.name))i.innerHTML='<b class="err">⚠️ "'+esc(f.name)+'" looks like a teacher key. Students will be able to open it.</b>';
- else i.textContent=f.name+" · "+mb+" MB"};
+function isPdfFile(f){if(!f)return false;const name=String(f.name||"").trim();if(/\.pdf$/i.test(name))return true;return String(f.type||"").toLowerCase()==="application/pdf"}
+const PDFNOTE="No file chosen yet. Student copy only. Never upload a teacher key. Maximum 10 MB.";
+function pdfNote(html,isErr){const i=$("pdfinfo");i.className="pdfinfo"+(isErr?" err":"");i.innerHTML=html}
+function clearPdf(){try{$("pdf").value=""}catch(_){}}
+function resetForm(){fillSubjects();const n=manilaNow();$("rel").value=n.slice(0,10);$("op").value=n;$("cl").value="";$("ti").value="";$("ins").value="";clearPdf();pdfNote(PDFNOTE)}
+$("pdf").addEventListener("change",()=>{const f=$("pdf").files&&$("pdf").files[0];
+ if(!f){pdfNote(PDFNOTE);return}
+ const mb=((f.size||0)/1048576).toFixed(1);
+ if(f.size>MAXPDF){pdfNote("<b>"+esc(f.name)+" is "+mb+" MB. Please choose a PDF of 10 MB or less.</b>",true);clearPdf();return}
+ if(!isPdfFile(f)){pdfNote("<b>"+esc(f.name||"That file")+" is not a PDF. Please choose a .pdf file.</b>",true);clearPdf();return}
+ let msg="<b>Selected: "+esc(f.name)+" · "+mb+" MB</b>";
+ if(/key|answer/i.test(f.name))msg+=' <span class="err">⚠️ This filename looks like a teacher key. Students will be able to open it.</span>';
+ pdfNote(msg)});
+try{const ua=navigator.userAgent||"";if(/FBAN|FBAV|FB_IAB|FB4A|FBIOS|Messenger|Instagram|Line\/|Twitter/i.test(ua))$("pdfhint").classList.remove("hide")}catch(_){}
 function readB64(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result||"").split(",")[1]||"");r.onerror=()=>no(r.error);r.readAsDataURL(f)})}
 function pmsg(cls,html){$("pmsg").innerHTML=html?'<div class="msgbox '+cls+'">'+html+'</div>':""}
 
@@ -69,7 +77,7 @@ $("pbtn").onclick=async()=>{const bt=$("pbtn");pmsg();
  if(!d.opens)return pmsg("no","Choose when the task opens.");
  if(d.close&&d.close<=d.opens)return pmsg("no","Closes must be after Opens.");
  const f=$("pdf").files[0];
- if(f){if(f.size>MAXPDF)return pmsg("no","The PDF is bigger than 10 MB.");if(!/\.pdf$/i.test(f.name)&&f.type!=="application/pdf")return pmsg("no","Please choose a PDF file.")}
+ if(f){if(f.size>MAXPDF)return pmsg("no","The PDF is bigger than 10 MB. Please choose a file of 10 MB or less.");if(!isPdfFile(f))return pmsg("no","Please choose a PDF file (.pdf).")}
  const when=d.close?"until "+d.close.replace("T"," "):"until you close it";
  if(!confirm("Post \""+d.title+"\" for "+d.grade+" · "+d.subject+"?\nOpens "+d.opens.replace("T"," ")+", stays open "+when+"."))return;
  busy(bt,true,f?"Uploading PDF… please wait":"Posting…");
