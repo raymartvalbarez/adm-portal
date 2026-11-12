@@ -414,3 +414,80 @@ function teacherToggle_(d){
     return { ok: false, error: 'Task not found.' };
   });
 }
+
+/**
+ * Game Scores tab — a read-only sync of Integer Archer, Integer Racer,
+ * Treasure Diver, and Island Navigator leaderboards from MantleDB.
+ * Never renames, reorders, or deletes other tabs. Creates "Game Scores"
+ * only if it is missing, and only at the end of the workbook.
+ */
+var GAME_SCORES_TAB = 'Game Scores';
+var GAME_SCORES_HEADERS = ['Date (Asia/Manila)', 'Game', 'Grade', 'Section', 'Name', 'Score', 'Best Level'];
+var GAME_SOURCES = [
+  { name: 'Integer Archer', url: 'https://mantledb.sh/v2/export/bnhs-iarcher-nov10-2026', max: 5000 },
+  { name: 'Integer Racer', url: 'https://mantledb.sh/v2/export/bnhs-iracer-nov10-2026', max: 5000 },
+  { name: 'Treasure Diver', url: 'https://mantledb.sh/v2/export/bnhs-tdiver-nov10-2026', max: 5000 },
+  { name: 'Island Navigator', url: 'https://mantledb.sh/v2/export/bnhs-inavigator-nov2026', max: 1500 }
+];
+
+function gameScoresSheet_(){
+  var ss = ss_(), sh = ss.getSheetByName(GAME_SCORES_TAB);
+  if (!sh) sh = ss.insertSheet(GAME_SCORES_TAB); // added at the end; other tabs are left alone
+  return sh;
+}
+
+function fetchGameEntries_(src){
+  var rows = [];
+  try {
+    var res = UrlFetchApp.fetch(src.url + '?t=' + Date.now(), { muteHttpExceptions: true, followRedirects: true });
+    if (res.getResponseCode() >= 400) return rows;
+    var j = JSON.parse(res.getContentText() || '{}');
+    var bag = (j && j.entries) || {};
+    Object.keys(bag).forEach(function(path){
+      var e = bag[path];
+      if (String(path).indexOf('scores/') !== 0 || !e || !e.name) return;
+      var total = Number(e.total) || 0;
+      if (total > src.max) return;
+      var ts = Number(e.ts);
+      var when = (isFinite(ts) && ts > 0) ? Utilities.formatDate(new Date(ts), TZ, 'yyyy-MM-dd HH:mm:ss') : '';
+      rows.push([when, src.name, String(e.grade || ''), String(e.section || ''), String(e.name || ''), total, Number(e.bestLevel) || 0]);
+    });
+  } catch (err) {}
+  return rows;
+}
+
+function syncGameScores(){
+  var rows = [];
+  GAME_SOURCES.forEach(function(src){ rows = rows.concat(fetchGameEntries_(src)); });
+  rows.sort(function(a, b){
+    if (a[0] !== b[0]) return a[0] < b[0] ? 1 : -1; // date desc; blank dates last
+    if (a[1] !== b[1]) return a[1] < b[1] ? -1 : 1;
+    if (a[5] !== b[5]) return b[5] - a[5];
+    return String(a[4]).localeCompare(String(b[4]));
+  });
+  var sh = gameScoresSheet_();
+  var last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, 9).clearContent();
+  sh.getRange(1, 1, 1, GAME_SCORES_HEADERS.length).setValues([GAME_SCORES_HEADERS]);
+  if (rows.length) sh.getRange(2, 1, rows.length, GAME_SCORES_HEADERS.length).setValues(rows);
+  sh.getRange(1, 9).setValue('Last synced (Asia/Manila): ' + now_());
+  sh.setFrozenRows(1);
+  try {
+    var f = sh.getFilter();
+    if (f) f.remove();
+    sh.getRange(1, 1, Math.max(rows.length + 1, 2), GAME_SCORES_HEADERS.length).createFilter();
+  } catch (err) {}
+  return { ok: true, rows: rows.length, tab: GAME_SCORES_TAB };
+}
+
+/** Run this once from the Apps Script editor after deploying, to refresh the tab every 10 minutes. */
+function installGameScoresTrigger(){
+  var existing = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getHandlerFunction() === 'syncGameScores') ScriptApp.deleteTrigger(existing[i]);
+  }
+  ScriptApp.newTrigger('syncGameScores').timeBased().everyMinutes(10).create();
+  var r = syncGameScores();
+  r.trigger = 'every 10 minutes';
+  return r;
+}

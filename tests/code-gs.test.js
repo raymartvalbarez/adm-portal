@@ -16,7 +16,8 @@ function env(opts = {}) {
       getRange: (r, c, n = 1, w = 1) => ({ getValues: () => rows.slice(r - 1, r - 1 + n).map((x) => { const y = x.slice(c - 1, c - 1 + w); while (y.length < w) y.push(""); return y; }), setFontWeight() {},
         setNumberFormat(f) { log.push("format:" + name + ":" + f); return this; },
         setValues(v) { log.push("write:" + name); v.forEach((row, i) => { const x = rows[r - 1 + i] || (rows[r - 1 + i] = []); row.forEach((val, j) => { x[c - 1 + j] = val; }); }); return this; },
-        setValue(val) { this.setValues([[val]]); return this; } }) };
+        setValue(val) { this.setValues([[val]]); return this; },
+        clearContent() { log.push("clear:" + name); for (let i = 0; i < n; i++) { const x = rows[r - 1 + i]; if (x) { for (let j = 0; j < w; j++) x[c - 1 + j] = ""; } } return this; } }) };
   };
   const ss = { getSheetByName: (n) => sheets[n] || null, insertSheet: (n) => (sheets[n] = sheet(n)) };
   let fid = 0; const folders = {};
@@ -280,4 +281,59 @@ test("Code.gs taskPdf: serves the task's Drive PDF as JSON and never an arbitrar
   assert.equal(e.ctx.doGet({ parameter: { action: "config" } }).ok, true);
   assert.equal(e.ctx.doGet({ parameter: { action: "checkTask", name: "x", task: "T1" } }).exists, false);
   assert.equal(e.ctx.doGet({ parameter: {} }).app, "ADM Portal");
+});
+
+
+function gameEnv() {
+  const e = env();
+  const exports = {
+    "https://mantledb.sh/v2/export/bnhs-iarcher-nov10-2026": { entries: {
+      "scores/ana": { name: "Ana Cruz", grade: "11", section: "ACADS", total: 120, bestLevel: 5, ts: 1794270000000 },
+      "other/skip": { name: "Skip Me", total: 1 }
+    }},
+    "https://mantledb.sh/v2/export/bnhs-iracer-nov10-2026": { entries: {
+      "scores/ben": { name: "Ben Santos", grade: "12", section: "HUMSS", total: 200, bestLevel: 5, ts: 1794271000000 }
+    }},
+    "https://mantledb.sh/v2/export/bnhs-tdiver-nov10-2026": { entries: {} },
+    "https://mantledb.sh/v2/export/bnhs-inavigator-nov2026": { entries: {
+      "scores/no-date": { name: "Old Score", grade: "11", section: "ACADS", total: 50, bestLevel: 3 }
+    }}
+  };
+  e.ctx.UrlFetchApp = {
+    fetch(url) {
+      const base = String(url).split("?")[0];
+      const body = JSON.stringify(exports[base] || { entries: {} });
+      return { getResponseCode: () => 200, getContentText: () => body };
+    }
+  };
+  return e;
+}
+
+test("Code.gs: syncGameScores writes a new Game Scores tab and leaves other tabs alone", () => {
+  const e = gameEnv();
+  const tasksBefore = e.sheets["Tasks"].rows.map((r) => r.slice());
+  const r = e.ctx.syncGameScores();
+  assert.equal(r.ok, true);
+  assert.equal(r.tab, "Game Scores");
+  assert.equal(r.rows, 3);
+  assert.deepEqual(e.sheets["Tasks"].rows, tasksBefore);
+  const sh = e.sheets["Game Scores"];
+  assert.ok(sh);
+  assert.deepEqual(sh.rows[0].slice(0, 7), ["Date (Asia/Manila)", "Game", "Grade", "Section", "Name", "Score", "Best Level"]);
+  const names = sh.rows.slice(1).map((row) => row[4]).sort();
+  assert.deepEqual(names, ["Ana Cruz", "Ben Santos", "Old Score"]);
+  const old = sh.rows.find((row) => row[4] === "Old Score");
+  assert.equal(old[0], ""); // no timestamp -> blank date, All time only on the boards
+  assert.equal(old[1], "Island Navigator");
+  assert.match(String(sh.rows[0][8] || ""), /Last synced/);
+});
+
+test("Code.gs: syncGameScores replaces previous rows instead of appending duplicates", () => {
+  const e = gameEnv();
+  e.ctx.syncGameScores();
+  const r = e.ctx.syncGameScores();
+  assert.equal(r.rows, 3);
+  const sh = e.sheets["Game Scores"];
+  const names = sh.rows.slice(1).map((row) => row[4]).filter(Boolean);
+  assert.equal(names.length, 3);
 });
