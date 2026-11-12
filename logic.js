@@ -193,18 +193,28 @@ function drivePdfLinks(url) {
   };
 }
 
-/* PDF buttons for a task: the PDF Link column (t.pdf) wins, else a .pdf URL inside the instructions. */
+/* PDF buttons for a task: the PDF Link column (t.pdf) wins, else a .pdf URL inside the instructions.
+   Drive files are served by the public ?action=taskPdf&task=ID endpoint (via: "taskPdf") so students
+   never open a Drive URL that would ask them to sign in. Plain .pdf / handouts/ URLs stay direct (via: "url"). */
+function taskPdfQuery(taskId) {
+  var id = String(taskId == null ? "" : taskId).trim();
+  if (!id) return "";
+  return "action=taskPdf&task=" + encodeURIComponent(id);
+}
+
 function taskPdfLinks(t) {
   t = t || {};
   var col = String(t.pdf == null ? "" : t.pdf).trim();
   if (col) {
     var d = drivePdfLinks(col);
-    if (d) return { view: d.view, download: d.download, name: "", strip: "" };
-    if (/^https:\/\//i.test(col) || /^(\.\/)?handouts\//i.test(col)) return { view: col, download: col, name: col.split("?")[0].split("/").pop(), strip: "" };
+    if (d) return { view: d.view, download: d.download, name: "", strip: "", via: "taskPdf", taskId: String(t.id || "") };
+    if (/^https:\/\//i.test(col) || /^(\.\/)?handouts\//i.test(col)) return { view: col, download: col, name: col.split("?")[0].split("/").pop(), strip: "", via: "url" };
   }
   var u = extractTaskPdf(t.instructions);
   if (!u) return null;
-  return { view: u, download: u, name: String(u).split("?")[0].split("/").pop(), strip: u };
+  var d2 = drivePdfLinks(u);
+  if (d2) return { view: d2.view, download: d2.download, name: "", strip: u, via: "taskPdf", taskId: String(t.id || "") };
+  return { view: u, download: u, name: String(u).split("?")[0].split("/").pop(), strip: u, via: "url" };
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -229,6 +239,7 @@ if (typeof module !== "undefined" && module.exports) {
     stripTaskPdfUrl: stripTaskPdfUrl,
     driveFileId: driveFileId,
     drivePdfLinks: drivePdfLinks,
+    taskPdfQuery: taskPdfQuery,
     taskPdfLinks: taskPdfLinks
   };
 }

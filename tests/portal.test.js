@@ -152,9 +152,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261112b/);
+  assert.match(html, /logic\.js\?v=20261112c/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112g/);
+  assert.match(html, /app\.js\?v=20261112h/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -247,12 +247,12 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.equal(logic.extractTaskPdf("https://example.com/notes.txt"), "");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(app, /taskPdfLinks\(t\)/);
-  assert.match(app, /taskPdfButtons\(pdf\)/);
+  assert.match(app, /taskPdfButtons\(pdf,t\)/);
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112g/);
-  assert.match(html, /logic\.js\?v=20261112b/);
+  assert.match(html, /app\.js\?v=20261112h/);
+  assert.match(html, /logic\.js\?v=20261112c/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -289,19 +289,35 @@ test("Drive PDF links from the PDF Link column become view + download buttons; .
   assert.equal(logic.driveFileId("https://drive.google.com/open?id=" + id), id);
   assert.equal(logic.driveFileId("https://example.com/file/d/" + id), "");
   assert.deepEqual(logic.drivePdfLinks(view), { view: "https://drive.google.com/file/d/" + id + "/view", download: "https://drive.google.com/uc?export=download&id=" + id });
-  const t = logic.taskPdfLinks({ pdf: view, instructions: "Do it." });
+  const t = logic.taskPdfLinks({ id: "G11-GM-20261112-TEST", pdf: view, instructions: "Do it." });
+  assert.equal(t.via, "taskPdf");
+  assert.equal(t.taskId, "G11-GM-20261112-TEST");
   assert.equal(t.view, "https://drive.google.com/file/d/" + id + "/view");
   assert.equal(t.download, "https://drive.google.com/uc?export=download&id=" + id);
   assert.equal(t.strip, "");
+  assert.equal(logic.taskPdfQuery("G11-GM-20261112-TEST"), "action=taskPdf&task=G11-GM-20261112-TEST");
+  assert.equal(logic.taskPdfQuery("a b"), "action=taskPdf&task=a%20b");
+  assert.equal(logic.taskPdfQuery(""), "");
   const old = "https://raymartvalbarez.github.io/adm-portal/handouts/Findings_SCR_Activity_Nov12.pdf";
   const t2 = logic.taskPdfLinks({ instructions: "Study it. " + old });
-  assert.deepEqual(t2, { view: old, download: old, name: "Findings_SCR_Activity_Nov12.pdf", strip: old });
+  assert.deepEqual(t2, { view: old, download: old, name: "Findings_SCR_Activity_Nov12.pdf", strip: old, via: "url" });
+  const t3 = logic.taskPdfLinks({ pdf: old, instructions: "Do it." });
+  assert.deepEqual(t3, { view: old, download: old, name: "Findings_SCR_Activity_Nov12.pdf", strip: "", via: "url" });
   assert.equal(logic.taskPdfLinks({ instructions: "No file" }), null);
   assert.equal(logic.taskPdfLinks({ pdf: "", instructions: "No file" }), null);
   assert.equal(logic.taskPdfLinks({ pdf: "javascript:alert(1)", instructions: "x" }), null);
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(app, /taskPdfLinks\(t\)/);
-  assert.match(app, /p\.download/);
+  assert.match(app, /taskPdfButtons\(pdf,t\)/);
+  assert.match(app, /function openTaskPdf/);
+  assert.match(app, /action=taskPdf&task=/);
+  assert.match(app, /createObjectURL/);
+  assert.match(app, /window\.open\("about:blank"/);
+  assert.match(app, /triggerPdfDownload/);
+  assert.match(app, /showPdfFallback/);
+  // GitHub-hosted handouts still use ordinary Open/Download links, not the proxy
+  assert.match(app, /function handoutCard/);
+  assert.match(app, /href="'\+esc\(file\)\+'" target="_blank"/);
 });
 
 test("teacher page is PIN-gated, linked discreetly from the student home footer, and has a back link", () => {

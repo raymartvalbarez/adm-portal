@@ -71,6 +71,45 @@ function tasks_(){ // active tasks students can see: Active = Y and the open tim
     return t;
   });
 }
+// Drive file id from a Tasks column H URL. Empty for non-Drive values. Never reads a client-supplied file id.
+function driveId_(url){
+  var s = String(url == null ? '' : url).trim();
+  if (!/^https:\/\/(?:drive|docs)\.google\.com\//i.test(s)) return '';
+  var m = s.match(/\/file\/d\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? m[1] : '';
+}
+function sheetPdfIds_(){
+  var ids = {};
+  rows_('tasks').forEach(function(r){ var id = driveId_(r[7]); if (id) ids[id] = 1; });
+  return ids;
+}
+/** Public GET ?action=taskPdf&task=TaskID — only an Active task whose open time has passed, and only a file id that appears in Tasks column H. */
+function taskPdfGet_(taskId){
+  var id = String(taskId || '').trim();
+  if (!id) return { ok: false, error: 'Task is missing.' };
+  var hit = null;
+  rows_('tasks').forEach(function(r){ if (String(r[0]) === id) hit = r; });
+  if (!hit) return { ok: false, error: 'Task not found.' };
+  if (!yes_(hit[6])) return { ok: false, error: 'This task is not open.' };
+  var opens = dl_(hit[8]);
+  if (opens && Date.now() < opens) return { ok: false, error: 'This task is not open yet.' };
+  var fileId = driveId_(hit[7]);
+  if (!fileId || !sheetPdfIds_()[fileId]) return { ok: false, error: 'This task has no PDF.' };
+  try {
+    var file = DriveApp.getFileById(fileId);
+    var blob = file.getBlob();
+    var bytes = blob.getBytes();
+    if (!bytes || !bytes.length) return { ok: false, error: "Couldn't open the PDF. Please try again, or tell your teacher." };
+    var mime = blob.getContentType() || file.getMimeType && file.getMimeType() || 'application/pdf';
+    var head = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]);
+    if (head === '%PDF-') mime = 'application/pdf';
+    var name = String((file.getName && file.getName()) || 'task.pdf');
+    if (!/\.pdf$/i.test(name)) name += '.pdf';
+    return { ok: true, name: name, mime: mime, data: Utilities.base64Encode(bytes) };
+  } catch (err) {
+    return { ok: false, error: "Couldn't open the PDF. Please try again, or tell your teacher." };
+  }
+}
 function folder_(parent, name){
   name = String(name||'Untitled').replace(/[\\\/:*?"<>|]+/g,'-').trim().slice(0,100) || 'Untitled';
   var it = parent.getFoldersByName(name);
@@ -98,6 +137,7 @@ function learners_(){
 function doGet(e){
   var p = (e && e.parameter) || {};
   if (p.action === 'config') return out_({ ok: true, quizzes: schedule_(), tasks: tasks_(), learners: learners_(), now: Date.now() });
+  if (p.action === 'taskPdf') return out_(taskPdfGet_(p.task)); // public: serves the task's own Drive PDF as JSON {ok,name,mime,data}
   if (p.action === 'check')  return out_({ exists: quizDone_(p.name, p.subject) });
   if (p.action === 'checkTask') return out_({ exists: taskDone_(p.name, p.task) });
   if (p.action === 'nsedCheck') return out_({ exists: nsedDone_(p.name), deadline: nsedDeadline_(), nsedFolder: nsedRoot_().getUrl() });

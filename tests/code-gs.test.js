@@ -24,17 +24,19 @@ function env(opts = {}) {
     getFoldersByName(n) { const hit = this.kids.filter((k) => k.name === n); return { hasNext: () => hit.length > 0, next: () => hit[0] }; },
     createFolder(n) { const k = mkFolder(n); this.kids.push(k); return k; },
     createFile(blob) { if (opts.failOnFile && files.length + 1 === opts.failOnFile) throw new Error("drive fail"); log.push("file:" + (lockHeld ? "locked" : "unlocked"));
-      const x = { name: blob.name, type: blob.type, trashed: false, sharing: null, id: "FILE" + (files.length + 1) + "abcdefghij", setTrashed(v) { this.trashed = v; }, getUrl: () => "https://file/" + blob.name,
-        getId() { return this.id; }, setSharing(a, p) { if (opts.failSharing) throw new Error("sharing blocked"); this.sharing = a + "/" + p; } }; files.push(x); return x; } };
+      const x = { name: blob.name, type: blob.type, bytes: Array.from(blob.bytes || []), trashed: false, sharing: null, id: "FILE" + (files.length + 1) + "abcdefghij",
+        setTrashed(v) { this.trashed = v; }, getUrl: () => "https://file/" + blob.name, getId() { return this.id; }, getName() { return this.name; }, getMimeType() { return this.type; },
+        getBlob() { return { getContentType: () => this.type, getBytes: () => this.bytes }; },
+        setSharing(a, p) { if (opts.failSharing) throw new Error("sharing blocked"); this.sharing = a + "/" + p; } }; files.push(x); return x; } };
     folders[f.id] = f; return f; };
   const root = mkFolder("root"); const cache = {}; const props = { ROOT_ID: root.id }; let uuid = 0;
   const ctx = {
     SpreadsheetApp: { openById: () => ss },
-    DriveApp: { getFolderById: (id) => { if (!folders[id]) throw new Error("no"); return folders[id]; }, Access: { ANYONE_WITH_LINK: "ANYONE_WITH_LINK" }, Permission: { VIEW: "VIEW" } },
+    DriveApp: { getFolderById: (id) => { if (!folders[id]) throw new Error("no"); return folders[id]; }, getFileById: (id) => { const f = files.find((x) => x.id === id && !x.trashed); if (!f) throw new Error("no file"); return f; }, Access: { ANYONE_WITH_LINK: "ANYONE_WITH_LINK" }, Permission: { VIEW: "VIEW" } },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); } }) },
     CacheService: { getScriptCache: () => ({ get: (k) => cache[k] || null, put: (k, v) => { cache[k] = v; } }) },
     LockService: { getScriptLock: () => ({ tryLock: () => { if (!lockFree) return false; lockHeld = true; return true; }, releaseLock: () => { lockHeld = false; } }) },
-    Utilities: { formatDate: (d, tz, f) => (f === "yyyy-MM-dd HH:mm" ? "2026-11-12 11:00" : "2026-11-12 11:00:00"), base64Decode: (s) => [...Buffer.from(s, "base64")], newBlob: (b, t, n) => ({ name: n, type: t }),
+    Utilities: { formatDate: (d, tz, f) => (f === "yyyy-MM-dd HH:mm" ? "2026-11-12 11:00" : "2026-11-12 11:00:00"), base64Decode: (s) => [...Buffer.from(s, "base64")], base64Encode: (b) => Buffer.from(Uint8Array.from(b)).toString("base64"), newBlob: (b, t, n) => ({ name: n, type: t, bytes: b }),
       getUuid: () => crypto.createHash("md5").update(String(++uuid)).digest("hex").replace(/^(.{8})(.{4})(.{4})(.{4})/, "$1-$2-$3-$4-"),
       computeDigest: (a, s) => [...crypto.createHash("sha256").update(s).digest()], base64EncodeWebSafe: (b) => Buffer.from(b).toString("base64url"),
       DigestAlgorithm: { SHA_256: 1 }, Charset: { UTF_8: 1 } },
@@ -234,4 +236,48 @@ test("Code.gs teacher: a task past its close time stops accepting uploads", () =
   assert.equal(up.ok, false);
   const list = e.post({ action: "teacherList", pin: "246810" });
   assert.equal(list.tasks.find((t) => t.id === r.id).status, "ended");
+});
+
+test("Code.gs taskPdf: serves the task's Drive PDF as JSON and never an arbitrary file id", () => {
+  const e = env(); setPin(e);
+  const posted = e.post(tpost({ opens: "2020-01-01T08:00", pdf: PDF_B64, pdfName: "Normal Curve.pdf" }));
+  assert.equal(posted.ok, true);
+  const later = e.post(tpost({ opens: "2099-01-01T08:00", pdf: PDF_B64, pdfName: "Future.pdf" }));
+  assert.equal(later.ok, true);
+  const noPdf = e.post(tpost({ opens: "2020-01-01T08:00" }));
+  assert.equal(noPdf.ok, true);
+
+  const ok = e.ctx.doGet({ parameter: { action: "taskPdf", task: posted.id } });
+  assert.equal(ok.ok, true, JSON.stringify(ok));
+  assert.equal(ok.name, "Normal Curve.pdf");
+  assert.equal(ok.mime, "application/pdf");
+  assert.equal(ok.data, PDF_B64);
+  assert.equal(Buffer.from(ok.data, "base64").subarray(0, 5).toString(), "%PDF-");
+
+  // extra / unknown params must not select a different file
+  const sneak = e.ctx.doGet({ parameter: { action: "taskPdf", task: posted.id, file: e.files[1].id, id: e.files[1].id, fileId: e.files[1].id } });
+  assert.equal(sneak.data, PDF_B64);
+  assert.equal(sneak.name, "Normal Curve.pdf");
+
+  assert.equal(e.ctx.doGet({ parameter: { action: "taskPdf" } }).ok, false);
+  assert.equal(e.ctx.doGet({ parameter: { action: "taskPdf", task: "NOPE" } }).ok, false);
+  assert.equal(e.ctx.doGet({ parameter: { action: "taskPdf", task: "T1" } }).ok, false); // no PDF in column H
+  assert.equal(e.ctx.doGet({ parameter: { action: "taskPdf", task: noPdf.id } }).ok, false);
+  assert.match(e.ctx.doGet({ parameter: { action: "taskPdf", task: later.id } }).error, /not open yet/i);
+
+  // closed (Active N) tasks are refused; column H is unchanged
+  assert.equal(e.post({ action: "teacherToggle", pin: "246810", id: posted.id, active: false }).ok, true);
+  const closed = e.ctx.doGet({ parameter: { action: "taskPdf", task: posted.id } });
+  assert.equal(closed.ok, false);
+  assert.match(closed.error, /not open/i);
+  assert.equal(closed.data, undefined);
+
+  // a client-supplied file id alone is never served
+  const raw = e.ctx.doGet({ parameter: { action: "taskPdf", file: e.files[0].id, id: e.files[0].id } });
+  assert.equal(raw.ok, false); assert.equal(raw.data, undefined);
+
+  // existing GET actions still work
+  assert.equal(e.ctx.doGet({ parameter: { action: "config" } }).ok, true);
+  assert.equal(e.ctx.doGet({ parameter: { action: "checkTask", name: "x", task: "T1" } }).exists, false);
+  assert.equal(e.ctx.doGet({ parameter: {} }).app, "ADM Portal");
 });

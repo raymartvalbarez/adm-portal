@@ -105,19 +105,57 @@ $("tgr").onchange=()=>{const g=$("tgr").value,subs=[...new Set(openTasks().filte
  $("tsj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":subs.length?"— Choose subject —":"No tasks right now")+'</option>'+subs.map(s=>'<option>'+esc(s)+'</option>').join("");$("tsj").disabled=!subs.length;showTasks()};
 $("tsj").onchange=showTasks;
 function handoutCard(t){const file=String(t.file||""),name=file.split("/").pop();return'<div class="card task handout"><div class="dl">Lesson Handout</div><h3>'+esc(t.title)+'</h3><div class="ins">'+esc(t.instructions)+'</div><a class="pdf" href="'+esc(file)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(file)+'" download="'+esc(name)+'">Download PDF</a><p class="note" style="text-align:left;margin-top:8px">If it does not open, tap and hold the button, then choose Open link or Download link.</p></div>'}
-function taskPdfButtons(p){if(!p)return"";if(typeof p==="string")p={view:p,download:p,name:String(p).split("?")[0].split("/").pop()};return'<a class="pdf" href="'+esc(p.view)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(p.download)+'"'+(p.name?' download="'+esc(p.name)+'"':' target="_blank" rel="noopener"')+'>Download PDF</a>'}
+function taskPdfButtons(p,t){if(!p)return"";if(typeof p==="string")p={view:p,download:p,name:String(p).split("?")[0].split("/").pop()};
+ const id=String((t&&t.id)||p.taskId||"").trim();
+ if((p.via==="taskPdf"||(typeof driveFileId==="function"&&driveFileId((t&&t.pdf)||p.view||"")))&&id){
+  return '<button type="button" class="pdfact" data-pdf="open" data-id="'+esc(id)+'">Open PDF</button><button type="button" class="pdfact" data-pdf="dl" data-id="'+esc(id)+'">Download PDF</button><p class="note pdfmsg" style="text-align:left;margin-top:8px"></p>';
+ }
+ return '<a class="pdf" href="'+esc(p.view)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(p.download)+'"'+(p.name?' download="'+esc(p.name)+'"':' target="_blank" rel="noopener"')+'>Download PDF</a>'}
+function b64ToBlob(b64,mime){const clean=String(b64||"").replace(/\s+/g,""),bin=atob(clean),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:mime||"application/pdf"})}
+function safePdfName(n){n=String(n||"task.pdf").replace(/[/\\?%*:|"<>]/g,"").trim()||"task.pdf";if(!/\.pdf$/i.test(n))n+=".pdf";return n}
+function triggerPdfDownload(url,name){const a=document.createElement("a");a.href=url;a.download=name;a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
+function showPdfFallback(card,url,name,text){if(!card)return;let hold=card.querySelector(".pdffall");if(!hold){hold=document.createElement("p");hold.className="note pdffall";hold.style.textAlign="left";hold.style.marginTop="8px";const msg=card.querySelector(".pdfmsg");if(msg&&msg.parentNode)msg.parentNode.insertBefore(hold,msg.nextSibling);else card.appendChild(hold)}hold.innerHTML="";const a=document.createElement("a");a.className="pdf";a.href=url;a.target="_blank";a.rel="noopener";a.download=name;a.textContent=text||"Tap here to open the PDF";hold.appendChild(a)}
+async function openTaskPdf(taskId,mode,btn){
+ const card=btn.closest(".card")||btn.parentNode,msg=card&&card.querySelector(".pdfmsg"),buttons=card?card.querySelectorAll(".pdfact"):[btn];
+ const setMsg=(t,err)=>{if(!msg)return;msg.textContent=t||"";msg.className="note pdfmsg"+(err?" err":"");msg.style.textAlign="left"};
+ const q=typeof taskPdfQuery==="function"?taskPdfQuery(taskId):("action=taskPdf&task="+encodeURIComponent(taskId));
+ if(!q){setMsg("Task is missing.",true);return}
+ buttons.forEach(b=>b.disabled=true);const prev=btn.textContent;btn.textContent="Loading PDF…";setMsg("Loading the PDF… please wait.");
+ let w=null,url="";
+ if(mode==="open"){try{w=window.open("about:blank","_blank")}catch(_){w=null}}
+ try{
+  const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),60000);
+  let j=null;
+  try{const r=await fetch(API_URL+"?"+q,{cache:"no-store",signal:ac.signal});const txt=await r.text();try{j=JSON.parse(txt)}catch(_){}}
+  finally{clearTimeout(tm)}
+  if(!j||!j.data){const stale=j&&j.ok&&j.app&&!j.data;throw new Error(stale?"The PDF is not ready on the server yet. Please tell your teacher, then try again.":(j&&j.error)||"Couldn't open the PDF. Check your internet and try again.")}
+  const blob=b64ToBlob(j.data,j.mime||"application/pdf"),name=safePdfName(j.name);url=URL.createObjectURL(blob);
+  let opened=false;
+  if(mode==="open"&&w&&!w.closed){try{w.location=url;opened=true}catch(_){}}
+  if(!opened){if(w){try{w.close()}catch(_){}}w=null;triggerPdfDownload(url,name);showPdfFallback(card,url,name,mode==="open"?"If the PDF did not open, tap here.":"If the download did not start, tap here.");setMsg(mode==="open"?"If the PDF did not open in a new tab, use the link below or check your downloads.":"The PDF is downloading. Check your downloads.")}
+  else setMsg("");
+  setTimeout(()=>{try{URL.revokeObjectURL(url)}catch(_){}},120000);
+ }catch(e){
+  if(w){try{w.close()}catch(_){}}
+  if(url){try{URL.revokeObjectURL(url)}catch(_){}}
+  const abort=e&&(e.name==="AbortError"||/abort/i.test(String(e.message||e)));
+  setMsg(abort?"The PDF is taking too long. Check your internet and try again.":(e&&e.message)||"Couldn't open the PDF. Check your internet and try again.",true);
+ }
+ buttons.forEach(b=>b.disabled=false);btn.textContent=prev;
+}
+function bindTaskPdfButtons(root){(root||document).querySelectorAll(".pdfact").forEach(b=>{if(b._pdfBound)return;b._pdfBound=true;b.addEventListener("click",ev=>{ev.preventDefault();const id=b.getAttribute("data-id"),mode=b.getAttribute("data-pdf");if(id)openTaskPdf(id,mode,b)})})}
 function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note=document.getElementById("tasknote");if(!s){box.innerHTML="";if(note)note.style.display="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
  if(!ts.length){TS=[];box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
- box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));const pdf=taskPdfLinks(t),instr=pdf&&pdf.strip?stripTaskPdfUrl(t.instructions,pdf.strip):String(t.instructions||"");return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf)+
+ box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));const pdf=taskPdfLinks(t),instr=pdf&&pdf.strip?stripTaskPdfUrl(t.instructions,pdf.strip):String(t.instructions||"");return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf,t)+
  (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5). Take a photo or choose from Gallery; you can add more one at a time.</label><input type="file" accept="image/*"'+MULTI+' data-i="'+i+'"><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button class="go" data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>picker(inp.parentNode,inp));
- box.querySelectorAll("button.go[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));TS=ts;taskStatus(ts)}
+ box.querySelectorAll("button.go[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));bindTaskPdfButtons(box);TS=ts;taskStatus(ts)}
 const ONCE="You already submitted this. Only one submission is allowed.";
 function tkey(id){return"adm_task_"+norm($("tnm").value)+"_"+id}
 function chk(nm,id){return get("action=checkTask&name="+encodeURIComponent(nm)+"&task="+encodeURIComponent(id)).then(j=>!!(j&&j.exists)).catch(()=>false)}
-function lockCard(card,t){card.innerHTML='<h3>'+esc(t.title)+'</h3><p class="ok"><b>✅ Submitted — '+ONCE+'</b></p>'}
+function lockCard(card,t){const pdf=taskPdfLinks(t);card.innerHTML='<h3>'+esc(t.title)+'</h3>'+taskPdfButtons(pdf,t)+'<p class="ok"><b>✅ Submitted — '+ONCE+'</b></p>';bindTaskPdfButtons(card)}
 function taskStatus(ts){const nm=$("tnm").value.trim();if(!nm)return;ts.forEach((t,i)=>{const c=$("tk"+i);if(!c||!c.querySelector("button"))return;chk(nm,t.id).then(x=>{if(x&&$("tnm").value.trim()===nm){store(tkey(t.id),1);lockCard(c,t)}})})}
 // Name/section changes only re-check "already submitted" locks; they no longer rebuild the task cards,
 // which used to wipe photos a student had already picked (typing a name then tapping Submit fired "change").
