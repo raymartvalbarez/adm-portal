@@ -217,6 +217,130 @@ function taskPdfLinks(t) {
   return { view: u, download: u, name: String(u).split("?")[0].split("/").pop(), strip: u, via: "url" };
 }
 
+/* In-app browsers (Messenger, Facebook, Instagram, Line, Android WebView) block file pickers
+   and blob PDF tabs. Detect them and build an Android Chrome intent URL, or a copy-link fallback. */
+var IAB_TITLE = "For PDFs and uploads to work, open this page in Chrome";
+var IAB_IOS_HINT = "Tap the ⋯ or ⋮ menu, then choose Open in browser or Open in Chrome.";
+
+function isAndroidUserAgent(ua) {
+  var s = String(ua || "");
+  return /Android/i.test(s) && !/iPhone|iPad|iPod/i.test(s);
+}
+
+function isInAppBrowser(ua) {
+  var s = String(ua || "");
+  if (!s) return false;
+  if (isAdmAppUserAgent(s)) return false;
+  if (/FBAN|FBAV|FB_IAB|FB4A|FBIOS|FBSS|\bMessenger\b/i.test(s)) return true;
+  if (/Instagram/i.test(s)) return true;
+  if (/\bLine\//i.test(s)) return true;
+  if (/\bTwitter\b|TwitterAndroid/i.test(s)) return true;
+  if (/; wv\)/i.test(s)) return true;
+  return false;
+}
+
+function chromeIntentUrl(pageUrl) {
+  var raw = String(pageUrl || "").trim();
+  if (!raw) return "";
+  var u;
+  try { u = new URL(raw); } catch (e) { return ""; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return "";
+  var hostPath = u.host + u.pathname + u.search;
+  return "intent://" + hostPath + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(u.href) + ";end";
+}
+
+function inAppOpenInChrome(pageUrl, ua) {
+  var href = String(pageUrl || "").trim();
+  var show = isInAppBrowser(ua);
+  var android = isAndroidUserAgent(ua);
+  return {
+    show: show,
+    android: android,
+    href: href,
+    intent: (show && android && href) ? chromeIntentUrl(href) : "",
+    title: IAB_TITLE,
+    hint: (show && !android) ? IAB_IOS_HINT : ""
+  };
+}
+
+function escAttr(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function inAppChromeHelpHtml(info) {
+  info = info || {};
+  var html = "<p>" + escAttr(info.title || IAB_TITLE) + "</p>";
+  if (info.hint) html += "<p class=\"iabhint\">" + escAttr(info.hint) + "</p>";
+  if (info.android && info.intent) {
+    html += "<a class=\"iabgo\" href=\"" + escAttr(info.intent) + "\">Open in Chrome</a>";
+  } else {
+    html += "<button type=\"button\" class=\"iabgo\" data-iab=\"copy\">Copy link</button>";
+  }
+  return html;
+}
+
+function bindInAppChromeActions(el, info) {
+  if (!el || !el.querySelector) return;
+  var btn = el.querySelector("[data-iab=copy]");
+  if (!btn) return;
+  var href = (info && info.href) || "";
+  btn.onclick = function () {
+    function ok() { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy link"; }, 1600); }
+    function fallback() {
+      try {
+        var inp = document.createElement("input");
+        inp.value = href;
+        inp.setAttribute("readonly", "");
+        inp.style.position = "fixed";
+        inp.style.left = "-999px";
+        document.body.appendChild(inp);
+        inp.select();
+        document.execCommand("copy");
+        inp.remove();
+        ok();
+      } catch (e) {
+        if (typeof window !== "undefined" && window.prompt) window.prompt("Copy this link and open it in Chrome:", href);
+      }
+    }
+    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(href).then(ok).catch(fallback);
+    } else fallback();
+  };
+}
+
+function fillInAppChromeBar(el, pageUrl, ua) {
+  var info = inAppOpenInChrome(pageUrl, ua);
+  if (!el) return info;
+  if (!info.show) {
+    el.hidden = true;
+    el.className = String(el.className || "").replace(/\bon\b/g, " ").replace(/\s+/g, " ").trim();
+    el.innerHTML = "";
+    return info;
+  }
+  el.hidden = false;
+  if (!/\bon\b/.test(el.className || "")) el.className = (el.className ? el.className + " " : "") + "on";
+  el.innerHTML = inAppChromeHelpHtml(info);
+  bindInAppChromeActions(el, info);
+  return info;
+}
+
+function attachInAppChromeHelp(el, pageUrl, ua) {
+  if (typeof navigator !== "undefined") ua = ua || navigator.userAgent;
+  if (typeof location !== "undefined") pageUrl = pageUrl || location.href;
+  var info = inAppOpenInChrome(pageUrl, ua);
+  if (!el || !info.show) return info;
+  var box = el.querySelector ? el.querySelector(".iabhelp") : null;
+  if (!box) {
+    if (typeof document === "undefined" || !document.createElement) return info;
+    box = document.createElement("div");
+    box.className = "iabhelp";
+    el.appendChild(box);
+  }
+  box.innerHTML = inAppChromeHelpHtml(info);
+  bindInAppChromeActions(box, info);
+  return info;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -240,6 +364,14 @@ if (typeof module !== "undefined" && module.exports) {
     driveFileId: driveFileId,
     drivePdfLinks: drivePdfLinks,
     taskPdfQuery: taskPdfQuery,
-    taskPdfLinks: taskPdfLinks
+    taskPdfLinks: taskPdfLinks,
+    IAB_TITLE: IAB_TITLE,
+    isAndroidUserAgent: isAndroidUserAgent,
+    isInAppBrowser: isInAppBrowser,
+    chromeIntentUrl: chromeIntentUrl,
+    inAppOpenInChrome: inAppOpenInChrome,
+    inAppChromeHelpHtml: inAppChromeHelpHtml,
+    fillInAppChromeBar: fillInAppChromeBar,
+    attachInAppChromeHelp: attachInAppChromeHelp
   };
 }

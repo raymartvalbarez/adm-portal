@@ -57,8 +57,19 @@ footer{text-align:center;font-size:.8rem;color:var(--muted);padding:6px 0 12px}
 a.tlink{display:inline-block;margin-top:8px;padding:5px 12px;font-size:.78rem;font-weight:700;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:99px;line-height:1.2;min-height:0}
 a.tlink:active{opacity:.7}
 .hide{display:none!important}
+
+#iabbar{display:none;position:sticky;top:0;z-index:15;background:#7a4a00;color:#fff7e0;padding:calc(10px + env(safe-area-inset-top)) 12px 12px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+#iabbar.on{display:block}
+#iabbar .iabinner, #iabbar p, .iabhelp p{margin:0}
+#iabbar p{margin:0 0 10px;font-weight:800;font-size:1.05rem;line-height:1.35;text-align:center}
+#iabbar .iabhint, .iabhelp .iabhint{font-weight:600;font-size:.92rem;margin:0 0 10px;text-align:center}
+#iabbar a.iabgo, #iabbar button.iabgo, .iabhelp a.iabgo, .iabhelp button.iabgo{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;margin:0;padding:14px;border:0;border-radius:16px;background:var(--acc);color:#3b2600;font-weight:800;font-size:1.05rem;text-decoration:none;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.2);font-family:inherit;cursor:pointer}
+#iabbar button.iabgo:disabled::before, .iabhelp button.iabgo:disabled::before{display:none;content:none;width:0;height:0;border:0;animation:none}
+.iabhelp{margin-top:10px;padding:12px;border-radius:14px;background:#fff7e0;color:#7a4a00;text-align:center}
+.iabhelp p{margin:0 0 10px;font-weight:800;font-size:1rem;line-height:1.35}
 </style>
 </head><body>
+<div id="iabbar" hidden></div>
 <header>
 <div class="brandrow"><div class="logo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
 <div><div class="school">Bago National High School</div><h1>ADM Portal · Teacher</h1></div></div>
@@ -92,7 +103,6 @@ a.tlink:active{opacity:.7}
 <label class="pdfbtn" for="pdf">📂 Choose PDF</label>
 </div>
 <div class="pdfinfo" id="pdfinfo" role="status" aria-live="polite">No file chosen yet. Student copy only. Never upload a teacher key. Maximum 10 MB.</div>
-<p class="pdfhint hide" id="pdfhint">If Choose PDF does not open, tap the menu (⋮) and open this page in Chrome or your browser.</p>
 <div class="row2"><div><label class="f" for="op">🟢 Opens</label><input type="datetime-local" id="op"></div>
 <div><label class="f" for="cl">🔴 Closes (optional)</label><input type="datetime-local" id="cl"></div></div>
 <p class="note">Times are Philippine time. Leave Closes blank to keep the task open until you close it in My tasks.</p>
@@ -103,5 +113,6 @@ a.tlink:active{opacity:.7}
 <footer>ADM Portal · Teacher page<br><a class="tlink" href="index.html">← Back to student portal</a></footer>
 </main>
 <script src="config.js?v=20261105w"></script>
-<script src="teacher.js?v=20261112b"></script>
+<script src="logic.js?v=20261112d"></script>
+<script src="teacher.js?v=20261112c"></script>
 </body></html>

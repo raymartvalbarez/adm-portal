@@ -152,9 +152,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261112c/);
+  assert.match(html, /logic\.js\?v=20261112d/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112h/);
+  assert.match(html, /app\.js\?v=20261112i/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -251,8 +251,8 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112h/);
-  assert.match(html, /logic\.js\?v=20261112c/);
+  assert.match(html, /app\.js\?v=20261112i/);
+  assert.match(html, /logic\.js\?v=20261112d/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -344,7 +344,7 @@ test("teacher page is PIN-gated, linked discreetly from the student home footer,
   assert.match(js, /String\(f\.type\|\|""\)\.toLowerCase\(\)==="application\/pdf"/);
   assert.match(js, /Selected: /);
   assert.match(js, /Please choose a PDF of 10 MB or less/);
-  assert.match(html, /teacher\.js\?v=20261112b/);
+  assert.match(html, /teacher\.js\?v=20261112c/);
   for (const a of ["teacherStatus", "teacherSetPin", "teacherList", "teacherPost", "teacherToggle"]) assert.match(js, new RegExp(a));
   assert.match(js, /j\.teacher!==true/); // old backend -> "not set up yet"
   assert.match(js, /10\*1024\*1024/);
@@ -352,4 +352,79 @@ test("teacher page is PIN-gated, linked discreetly from the student home footer,
   assert.match(js, /"Community Engagement, Solidarity and Citizenship \(CESC\)"/);
   assert.match(js, /method:"POST"/);
   assert.equal(/\?action=teacher|action=teacher/.test(js.replace(/action:"teacher/g, "")), false); // never in a URL
+});
+
+test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not", () => {
+  const fbAndroid = "Mozilla/5.0 (Linux; Android 13; SM-A125F Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.6099.43 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/10.0.0.1.100;]";
+  const messenger = "Mozilla/5.0 (Linux; Android 13; SM-A125F; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.6099.43 Mobile Safari/537.36 [FB_IAB/Orca-Android;FBAV/172.0.0.0;]";
+  const instagram = "Mozilla/5.0 (Linux; Android 13; SM-A125F; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.6099.43 Mobile Safari/537.36 Instagram 10.0.0.1.100 Android";
+  const line = "Mozilla/5.0 (Linux; Android 13; SM-A125F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.43 Mobile Safari/537.36 Line/13.0.0";
+  const wvOnly = "Mozilla/5.0 (Linux; Android 13; Pixel 7; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36";
+  const iosFb = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/10.0.0;]";
+  const chromeAndroid = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+  const safari = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  const crios = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1";
+  const desktopChrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+  for (const ua of [fbAndroid, messenger, instagram, line, wvOnly]) {
+    assert.equal(logic.isInAppBrowser(ua), true, ua);
+    assert.equal(logic.isAndroidUserAgent(ua), true, ua);
+  }
+  assert.equal(logic.isInAppBrowser(iosFb), true);
+  assert.equal(logic.isAndroidUserAgent(iosFb), false);
+  for (const ua of [chromeAndroid, safari, crios, desktopChrome, logic.ADM_APP_UA, "BagoSHSADMStudent/1.6.3", "BagoSHSADMTeacher/1.0", ""]) {
+    assert.equal(logic.isInAppBrowser(ua), false, ua);
+  }
+
+  const href = "https://raymartvalbarez.github.io/adm-portal/teacher.html";
+  assert.equal(
+    logic.chromeIntentUrl(href),
+    "intent://raymartvalbarez.github.io/adm-portal/teacher.html#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(href) + ";end"
+  );
+  const withQuery = "https://raymartvalbarez.github.io/adm-portal/?view=tasks";
+  const qIntent = logic.chromeIntentUrl(withQuery);
+  assert.equal(qIntent.startsWith("intent://raymartvalbarez.github.io/adm-portal/?view=tasks#Intent;scheme=https;package=com.android.chrome;"), true);
+  assert.equal(qIntent.includes("S.browser_fallback_url=" + encodeURIComponent(withQuery)), true);
+  const withHash = "https://raymartvalbarez.github.io/adm-portal/#tasks";
+  const hIntent = logic.chromeIntentUrl(withHash);
+  assert.equal(hIntent.startsWith("intent://raymartvalbarez.github.io/adm-portal/#Intent;"), true);
+  assert.equal(hIntent.includes("#Intent;scheme=https;"), true);
+  assert.equal(hIntent.includes(encodeURIComponent(withHash)), true);
+  assert.equal(logic.chromeIntentUrl("javascript:alert(1)"), "");
+  assert.equal(logic.chromeIntentUrl(""), "");
+
+  const androidHelp = logic.inAppOpenInChrome(href, fbAndroid);
+  assert.equal(androidHelp.show, true);
+  assert.equal(androidHelp.android, true);
+  assert.equal(androidHelp.intent, logic.chromeIntentUrl(href));
+  assert.equal(androidHelp.title, "For PDFs and uploads to work, open this page in Chrome");
+  assert.match(logic.inAppChromeHelpHtml(androidHelp), /Open in Chrome/);
+  assert.match(logic.inAppChromeHelpHtml(androidHelp), /intent:\/\/raymartvalbarez\.github\.io\/adm-portal\/teacher\.html/);
+
+  const iosHelp = logic.inAppOpenInChrome(href, iosFb);
+  assert.equal(iosHelp.show, true);
+  assert.equal(iosHelp.android, false);
+  assert.equal(iosHelp.intent, "");
+  assert.match(iosHelp.hint, /Open in browser/);
+  assert.match(logic.inAppChromeHelpHtml(iosHelp), /Copy link/);
+  assert.equal(logic.inAppOpenInChrome(href, chromeAndroid).show, false);
+  assert.equal(logic.inAppOpenInChrome(href, safari).show, false);
+
+  const index = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const teacher = fs.readFileSync(path.join(root, "teacher.html"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const tjs = fs.readFileSync(path.join(root, "teacher.js"), "utf8");
+  assert.match(index, /id="iabbar"/);
+  assert.match(index, /position:sticky/);
+  assert.match(teacher, /id="iabbar"/);
+  assert.match(teacher, /logic\.js\?v=20261112d/);
+  assert.match(teacher, /teacher\.js\?v=20261112c/);
+  assert.match(index, /logic\.js\?v=20261112d/);
+  assert.match(index, /app\.js\?v=20261112i/);
+  assert.match(app, /fillInAppChromeBar/);
+  assert.match(app, /attachInAppChromeHelp/);
+  assert.match(app, /function iabErr/);
+  assert.match(tjs, /fillInAppChromeBar/);
+  assert.match(tjs, /attachInAppChromeHelp/);
+  assert.doesNotMatch(tjs, /pdfhint/);
 });

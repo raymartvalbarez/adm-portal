@@ -77,10 +77,21 @@ html.sv-quiz #tasks,html.sv-quiz #games,html.sv-tasks #quiz,html.sv-tasks #games
 html.sv-quiz #quiz,html.sv-tasks #tasks,html.sv-handouts #tasks,html.sv-games #games{display:block!important}
 html.sv-handouts .task:not(.handout){display:none}
 html.sv-games #games>h2.sec{display:none}
+
+#iabbar{display:none;position:sticky;top:0;z-index:15;background:#7a4a00;color:#fff7e0;padding:calc(10px + env(safe-area-inset-top)) 12px 12px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+#iabbar.on{display:block}
+#iabbar .iabinner, #iabbar p, .iabhelp p{margin:0}
+#iabbar p{margin:0 0 10px;font-weight:800;font-size:1.05rem;line-height:1.35;text-align:center}
+#iabbar .iabhint, .iabhelp .iabhint{font-weight:600;font-size:.92rem;margin:0 0 10px;text-align:center}
+#iabbar a.iabgo, #iabbar button.iabgo, .iabhelp a.iabgo, .iabhelp button.iabgo{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;margin:0;padding:14px;border:0;border-radius:16px;background:var(--acc);color:#3b2600;font-weight:800;font-size:1.05rem;text-decoration:none;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.2);font-family:inherit;cursor:pointer}
+#iabbar button.iabgo:disabled::before, .iabhelp button.iabgo:disabled::before{display:none;content:none;width:0;height:0;border:0;animation:none}
+.iabhelp{margin-top:10px;padding:12px;border-radius:14px;background:#fff7e0;color:#7a4a00;text-align:center}
+.iabhelp p{margin:0 0 10px;font-weight:800;font-size:1rem;line-height:1.35}
 </style><script>
 (function(){var V={quiz:1,tasks:1,games:1,handouts:1};function c(v){v=String(v||"").toLowerCase().trim();if(v==="task")v="tasks";if(v==="game")v="games";if(v==="handout")v="handouts";return V[v]?v:""}function pick(){try{var m=/(?:^|[?&])view=([^&]*)/.exec(location.search);if(m){var q=c(decodeURIComponent(m[1]));if(q)return q}var h=(location.hash||"").replace(/^#/,"");m=/(?:^|[?&])view=([^&]*)/.exec(h);if(m){q=c(decodeURIComponent(m[1]));if(q)return q}var ua=navigator.userAgent||"",app=ua.indexOf("Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")>=0||/BagoSHSADM(Student|Teacher)/i.test(ua),bare=c(h.split(/[?&]/)[0]);if(app&&bare)return bare}catch(e){}return""}var s=pick();if(s){document.documentElement.className=(document.documentElement.className+" sv-mode sv-"+s).trim();document.documentElement.setAttribute("data-view",s)}})();
 </script>
 </head><body>
+<div id="iabbar" hidden></div>
 <div id="svbar" hidden><div class="svinner"><div class="school">Bago National High School</div><h1 id="svtitle">ADM</h1></div></div>
 <header>
 <div class="brandrow"><div class="logo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
@@ -117,8 +128,8 @@ html.sv-games #games>h2.sec{display:none}
 <footer>ADM Portal by Sir Raymart Valbarez<br><a class="tlink" href="teacher.html">🔒 Teacher</a></footer>
 </main>
 <nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button></nav>
-<script src="logic.js?v=20261112c"></script>
+<script src="logic.js?v=20261112d"></script>
 <script src="config.js?v=20261105w"></script>
 <script src="data.js?v=20261110a"></script>
-<script src="app.js?v=20261112h"></script>
+<script src="app.js?v=20261112i"></script>
 </body></html>

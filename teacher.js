@@ -65,9 +65,9 @@ $("pdf").addEventListener("change",()=>{const f=$("pdf").files&&$("pdf").files[0
  let msg="<b>Selected: "+esc(f.name)+" · "+mb+" MB</b>";
  if(/key|answer/i.test(f.name))msg+=' <span class="err">⚠️ This filename looks like a teacher key. Students will be able to open it.</span>';
  pdfNote(msg)});
-try{const ua=navigator.userAgent||"";if(/FBAN|FBAV|FB_IAB|FB4A|FBIOS|Messenger|Instagram|Line\/|Twitter/i.test(ua))$("pdfhint").classList.remove("hide")}catch(_){}
+try{if(typeof fillInAppChromeBar==="function"&&$("iabbar"))fillInAppChromeBar($("iabbar"),location.href,navigator.userAgent)}catch(_){}
 function readB64(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result||"").split(",")[1]||"");r.onerror=()=>no(r.error);r.readAsDataURL(f)})}
-function pmsg(cls,html){$("pmsg").innerHTML=html?'<div class="msgbox '+cls+'">'+html+'</div>':""}
+function pmsg(cls,html){$("pmsg").innerHTML=html?'<div class="msgbox '+cls+'">'+html+'</div>':"";if(cls==="no"&&typeof attachInAppChromeHelp==="function")attachInAppChromeHelp($("pmsg"))}
 
 $("pbtn").onclick=async()=>{const bt=$("pbtn");pmsg();
  const d={action:"teacherPost",pin:PIN,grade:$("g").value,subject:$("s").value,release:$("rel").value,title:$("ti").value.trim(),instructions:$("ins").value.trim(),opens:$("op").value,close:$("cl").value};

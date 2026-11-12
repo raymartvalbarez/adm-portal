@@ -31,6 +31,8 @@ function applySingleView(){if(!SV)return;const title=(typeof portalViewTitle==="
 function tab(w){if(SV==="games"){$("quiz").style.display="none";$("tasks").style.display="none";return}if(SV==="quiz")w="quiz";if(SV==="tasks"||SV==="handouts")w="tasks";$("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("sq").className=$("tq").className;$("st2").className=$("tt").className;$("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";if(!SV){try{location.hash=w}catch(e){}}}
 $("tq").onclick=()=>CFG&&!SV&&tab("quiz");$("tt").onclick=()=>CFG&&!SV&&tab("tasks");$("sq").onclick=$("tq").onclick;$("st2").onclick=$("tt").onclick;
 function notOpen(){$("loading").style.display="none";$("notopen").style.display="block"}
+function iabErr(el,text){if(!el)return;if(text!=null)el.textContent=text;if(typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(el)}
+if(typeof fillInAppChromeBar==="function"&&$("iabbar"))try{fillInAppChromeBar($("iabbar"),location.href,navigator.userAgent)}catch(_){}
 
 // ---------- QUIZ ----------
 function sched(id){const n=norm(SUBJ[id].n);return(CFG.quizzes||[]).find(q=>norm(q.subject)===n)}
@@ -88,7 +90,7 @@ function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document
   try{const imgs=files;bt.textContent="Uploading… please wait, don't close this page";
    const j=await post({type:"quizOutput",name:nm,section:sc,grade:g,subject:sub,images:imgs},{check:()=>chk(nm,"QUIZ-"+sub),wait:busyMsg(bt)});
    if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(k,1);c.innerHTML='<h3>📸 Upload your output</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · OUTPUT RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Uploaded":"Already uploaded")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(sub)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
-   er.textContent=failMsg(j)}catch(e){er.textContent=NETERR}
+   iabErr(er,failMsg(j))}catch(e){iabErr(er,NETERR)}
   bt.disabled=false;bt.textContent="Upload output"}}
 
 
@@ -132,7 +134,7 @@ async function openTaskPdf(taskId,mode,btn){
   const blob=b64ToBlob(j.data,j.mime||"application/pdf"),name=safePdfName(j.name);url=URL.createObjectURL(blob);
   let opened=false;
   if(mode==="open"&&w&&!w.closed){try{w.location=url;opened=true}catch(_){}}
-  if(!opened){if(w){try{w.close()}catch(_){}}w=null;triggerPdfDownload(url,name);showPdfFallback(card,url,name,mode==="open"?"If the PDF did not open, tap here.":"If the download did not start, tap here.");setMsg(mode==="open"?"If the PDF did not open in a new tab, use the link below or check your downloads.":"The PDF is downloading. Check your downloads.")}
+  if(!opened){if(w){try{w.close()}catch(_){}}w=null;triggerPdfDownload(url,name);showPdfFallback(card,url,name,mode==="open"?"If the PDF did not open, tap here.":"If the download did not start, tap here.");setMsg(mode==="open"?"If the PDF did not open in a new tab, use the link below or check your downloads.":"The PDF is downloading. Check your downloads.");if(typeof isInAppBrowser==="function"&&isInAppBrowser(navigator.userAgent)&&typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(card)}
   else setMsg("");
   setTimeout(()=>{try{URL.revokeObjectURL(url)}catch(_){}},120000);
  }catch(e){
@@ -140,6 +142,7 @@ async function openTaskPdf(taskId,mode,btn){
   if(url){try{URL.revokeObjectURL(url)}catch(_){}}
   const abort=e&&(e.name==="AbortError"||/abort/i.test(String(e.message||e)));
   setMsg(abort?"The PDF is taking too long. Check your internet and try again.":(e&&e.message)||"Couldn't open the PDF. Check your internet and try again.",true);
+  if(typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(card);
  }
  buttons.forEach(b=>b.disabled=false);btn.textContent=prev;
 }
@@ -222,6 +225,7 @@ function picker(card,inp){const P=[];card._P=P;card._busy=0;const th=card.queryS
   try{inp.value=""}catch(_){}card._busy--;draw();
   const allEmpty=bad.length&&bad.every(e=>e.code==="empty");
   er.textContent=[bad.length?(allEmpty?EMPTYERR:bad.every(e=>e.code==="big")?"This photo is too big for this phone to shrink. Take a screenshot of the photo and add the screenshot instead.":(bad.length>1?bad.length+" photos couldn't be read. Retake them or choose them from Gallery.":READERR)):"",over?"Only "+MAXP+" photos are allowed, so "+over+" extra photo"+(over>1?"s were":" was")+" not added.":""].filter(Boolean).join(" ");
+  if(bad.length&&typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(er);
   dt.textContent=bad.length?"Details: "+bad.map(e=>(e&&e.message)||String(e)).join(" | ")+(allEmpty&&INAPP?" — the in-app camera on app 1.6.1 or older can't save photos. Use Gallery, or install app 1.6.2.":""):""};
  draw()}
 async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").value.trim(),er=card.querySelector(".err"),bt=card.querySelector("button.go"),files=(card._P||[]).slice(0,MAXP);
@@ -234,8 +238,8 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  try{const imgs=files;bt.textContent="Uploading… please wait, don't close this page";
   const j=await post({type:"task",taskId:t.id,name:nm,section:sc,grade:$("tgr").value,images:imgs},{check:()=>chk(nm,t.id),wait:busyMsg(bt)});
   if(j.ok||j.dup||j.error==="already_submitted"){j.dup=!j.ok;store(tkey(t.id),1);card.innerHTML='<h3>'+esc(t.title)+'</h3><div class="card score" style="box-shadow:none"><div class="note">SHS ADM PORTAL · TASK RECEIPT</div><b style="font-size:1.4rem">'+(j.ok?"✓ Submitted":"Already submitted")+'</b><div class="row">'+esc(nm)+' · '+esc(sc)+'</div><div class="row">'+esc(t.subject)+'</div><div class="row">'+(j.ok?j.count+" photo(s) received · ":"")+fmt(Date.now())+'</div>'+(j.dup?'<p class="note">'+ONCE+'</p>':'')+'</div>';return}
-  er.textContent=j.closed?"This task is already closed.":failMsg(j)}
- catch(e){er.textContent=NETERR}
+  iabErr(er,j.closed?"This task is already closed.":failMsg(j))}
+ catch(e){iabErr(er,NETERR)}
  bt.disabled=false;bt.textContent="Submit task"}
 
 // ---------- start ----------
