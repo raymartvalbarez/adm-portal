@@ -304,12 +304,15 @@ test("Drive PDF links from the PDF Link column become view + download buttons; .
   assert.match(app, /p\.download/);
 });
 
-test("teacher page is standalone, PIN-gated, and not linked from student pages", () => {
+test("teacher page is PIN-gated, linked discreetly from the student home footer, and has a back link", () => {
   const html = fs.readFileSync(path.join(root, "teacher.html"), "utf8");
   const js = fs.readFileSync(path.join(root, "teacher.js"), "utf8");
   const index = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.equal(/teacher\.html/.test(index) || /teacher\.html/.test(app), false);
+  assert.match(index, /<footer>[\s\S]*href="teacher\.html"[\s\S]*🔒 Teacher/);
+  assert.match(index, /a\.tlink/);
+  assert.equal(/teacher\.html/.test(app), false);
+  assert.match(html, /<footer>[\s\S]*href="index\.html"[\s\S]*Back to student portal/);
   assert.match(html, /name="viewport"/);
   assert.match(html, /noindex/);
   assert.match(html, /teacher\.js\?v=\d{8}[a-z]/);
