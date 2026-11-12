@@ -2,7 +2,13 @@
  * SHS ADM Portal — Bago National High School
  * One Apps Script web app for quiz scores, quiz schedule, tasks and photo uploads.
  * Deploy: Execute as = Me, Who has access = Anyone.
- * Never deletes files or rows. Only appends rows / creates folders.
+ * Never deletes rows. Only appends rows / creates folders and photo files. The only thing it ever trashes is
+ * the photos it saved a moment earlier in the SAME request, when that request turns out to be a duplicate or
+ * the server is busy (so a retry starts clean).
+ *
+ * Concurrency (Nov 12, 2026): photos are decoded and saved to Drive WITHOUT holding the script lock, so many
+ * students can upload at the same time. The lock is only held briefly (a) to find/create the Drive folder chain
+ * (cached, so usually skipped) and (b) to re-check "already submitted" and append the sheet row.
  */
 var SHEET_ID = '1jDWuO1j3M2ZSKXhmM2IE_oOMjBO878X6f09RMpCVW0M'; // existing scores spreadsheet
 var ROOT_NAME = 'ADM Outputs — Bago NHS';
@@ -93,18 +99,53 @@ function doGet(e){
   return out_({ ok: true, app: 'ADM Portal' });
 }
 
-function doPost(e){
-  // When a whole class uploads at once, waiting for the lock can time out. Answer with JSON (busy) instead of
-  // an HTML error page so the portal can retry automatically. Nothing is saved when busy.
+var BUSY_ = { ok: false, busy: true, error: 'Server busy, please try again.' };
+/** Runs fn() while holding the script lock. Returns null if the lock could not be taken within ms. */
+function withLock_(ms, fn){
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(28000)) return out_({ ok: false, busy: true, error: 'Server busy, please try again.' });
+  if (!lock.tryLock(ms)) return null;
+  try { return fn(); } finally { lock.releaseLock(); }
+}
+
+function doPost(e){
+  // Lock timeouts answer with JSON {busy:true} (never an HTML error page) so the portal retries automatically.
+  // Nothing is kept when busy: photos saved by a busy request are trashed before answering.
   try {
     var d = JSON.parse(e.postData.contents);
-    return out_(d.action === 'nsed' ? saveNsed_(d) : d.type === 'task' ? saveTask_(d) : d.type === 'quizOutput' ? saveQuizOutput_(d) : saveQuiz_(d));
+    var r = d.action === 'nsed' ? saveNsed_(d)
+          : d.type === 'task' ? saveTask_(d)
+          : d.type === 'quizOutput' ? saveQuizOutput_(d)
+          : withLock_(28000, function(){ return saveQuiz_(d); }); // quiz score = sheet only, already quick
+    return out_(r || BUSY_);
   } catch (err) {
     return out_({ ok: false, error: String(err) });
-  } finally { lock.releaseLock(); }
+  }
 }
+
+/** Folder chain parent/a/b/c, cached by id so concurrent requests normally skip the lock entirely.
+ *  Creating a missing folder happens under a short lock so two students never create twin folders. */
+function folderPath_(parentFn, names){
+  var key = 'fp:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, names.join('\u0001'), Utilities.Charset.UTF_8));
+  var cache = CacheService.getScriptCache(), id = cache.get(key);
+  if (id) { try { var c = DriveApp.getFolderById(id); if (!c.isTrashed()) return c; } catch (e) {} }
+  var f = withLock_(20000, function(){
+    var x = parentFn(); names.forEach(function(n){ x = folder_(x, n); }); return x;
+  });
+  if (f) cache.put(key, f.getId(), 21600);
+  return f;
+}
+/** Decode + save photos (no lock). Returns the File objects; on any error trashes what was already saved. */
+function writePhotos_(f, base, imgs){
+  var files = [];
+  try {
+    imgs.forEach(function(b64, i){
+      var bytes = Utilities.base64Decode(String(b64).replace(/^data:image\/\w+;base64,/, ''));
+      files.push(f.createFile(Utilities.newBlob(bytes, 'image/jpeg', base + '_' + (i+1) + '.jpg')));
+    });
+  } catch (err) { trash_(files); throw err; }
+  return files;
+}
+function trash_(files){ (files || []).forEach(function(x){ try { x.setTrashed(true); } catch (e) {} }); }
 
 function saveQuiz_(d){
   var subject = String(d.subject||'').slice(0,80), name = String(d.name||'').slice(0,80);
@@ -143,16 +184,19 @@ function saveQuizOutput_(d){
 }
 
 function savePhotos_(name, section, grade, subject, id, folderName, title, imgs){
-  var f = folder_(folder_(folder_(root_(), subject), folderName), section);
+  var f = folderPath_(root_, [subject, folderName, section]);
+  if (!f) return BUSY_;
   var parts = name.replace(/,/g,' ').split(/\s+/).filter(String);
   var who = parts.length > 1 ? parts[parts.length-1] + '-' + parts.slice(0,-1).join('') : parts[0];
   var base = (section + '_' + who).replace(/[^A-Za-z0-9ñÑ\-_]+/g,'');
-  imgs.forEach(function(b64, i){
-    var bytes = Utilities.base64Decode(String(b64).replace(/^data:image\/\w+;base64,/, ''));
-    f.createFile(Utilities.newBlob(bytes, 'image/jpeg', base + '_' + (i+1) + '.jpg'));
+  var files = writePhotos_(f, base, imgs);            // slow part, runs in parallel for many students
+  var r = withLock_(28000, function(){                 // quick: re-check duplicate + append row
+    if (taskDone_(name, id)) return { ok: false, dup: true, error: 'already_submitted' };
+    tab_('subs').appendRow([now_(), name, grade, subject, section, id, title, imgs.length, f.getUrl()]);
+    return { ok: true, count: imgs.length };
   });
-  tab_('subs').appendRow([now_(), name, grade, subject, section, id, title, imgs.length, f.getUrl()]);
-  return { ok: true, count: imgs.length };
+  if (!r || !r.ok) trash_(files);                     // busy or duplicate: keep nothing from this request
+  return r || BUSY_;
 }
 
 // ===== 4th Quarter NSED 2026 — Duck, Cover and Hold photo portal =====
@@ -182,11 +226,15 @@ function saveNsed_(d){
   var hit = learners_().filter(function(x){ return norm_(x.n) === norm_(name); })[0];
   var who = hit ? ((hit.l || '') + '_' + (hit.f || '')) : name;
   var base = (section + '_' + who).replace(/\s+/g,'').replace(/[^A-Za-z0-9ñÑ\-_]+/g,'');
-  var f = folder_(nsedRoot_(), grade + ' - ' + section), links = [];
-  imgs.forEach(function(b64, i){
-    var bytes = Utilities.base64Decode(String(b64).replace(/^data:image\/\w+;base64,/, ''));
-    links.push(f.createFile(Utilities.newBlob(bytes, 'image/jpeg', base + '_' + (i+1) + '.jpg')).getUrl());
+  var f = folderPath_(root_, [NSED_FOLDER, grade + ' - ' + section]);
+  if (!f) return BUSY_;
+  var files = writePhotos_(f, base, imgs);
+  var links = files.map(function(x){ return x.getUrl(); });
+  var r = withLock_(28000, function(){
+    if (nsedDone_(name)) return { ok: false, dup: true, error: 'already_submitted' };
+    nsedTab_().appendRow([now_(), grade, section, name, imgs.length, links.join('\n'), f.getUrl()]);
+    return { ok: true, count: imgs.length, folderUrl: f.getUrl() };
   });
-  nsedTab_().appendRow([now_(), grade, section, name, imgs.length, links.join('\n'), f.getUrl()]);
-  return { ok: true, count: imgs.length, folderUrl: f.getUrl() };
+  if (!r || !r.ok) trash_(files);
+  return r || BUSY_;
 }
