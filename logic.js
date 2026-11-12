@@ -341,6 +341,44 @@ function attachInAppChromeHelp(el, pageUrl, ua) {
   return info;
 }
 
+
+function b64ToUint8Array(b64) {
+  var clean = String(b64 == null ? "" : b64).replace(/\s+/g, "");
+  if (!clean) return new Uint8Array(0);
+  var bin = atob(clean);
+  var u = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+
+function parsePdfSource(attr) {
+  var s = String(attr == null ? "" : attr).trim();
+  if (!s) return null;
+  var i = s.indexOf(":");
+  if (i < 1) return null;
+  var kind = s.slice(0, i), val = s.slice(i + 1);
+  if (kind === "task" && val) return { kind: "task", id: val };
+  if (kind === "url" && val && !/^\s*javascript:/i.test(val)) return { kind: "url", url: val };
+  return null;
+}
+
+function pdfSourceKey(src) {
+  if (!src || !src.kind) return "";
+  if (src.kind === "task") return src.id ? "task:" + src.id : "";
+  if (src.kind === "url") return src.url ? "url:" + src.url : "";
+  return "";
+}
+
+function isInlinePdfSource(src) {
+  if (!src) return false;
+  if (src.kind === "task" && src.id) return true;
+  if (src.kind !== "url") return false;
+  var u = String(src.url || "");
+  if (/^(?:\.\/)?handouts\//i.test(u)) return true;
+  if (/^https:\/\/raymartvalbarez\.github\.io\//i.test(u)) return true;
+  return false;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -372,6 +410,10 @@ if (typeof module !== "undefined" && module.exports) {
     inAppOpenInChrome: inAppOpenInChrome,
     inAppChromeHelpHtml: inAppChromeHelpHtml,
     fillInAppChromeBar: fillInAppChromeBar,
-    attachInAppChromeHelp: attachInAppChromeHelp
+    attachInAppChromeHelp: attachInAppChromeHelp,
+    b64ToUint8Array: b64ToUint8Array,
+    parsePdfSource: parsePdfSource,
+    pdfSourceKey: pdfSourceKey,
+    isInlinePdfSource: isInlinePdfSource
   };
 }

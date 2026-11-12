@@ -106,47 +106,108 @@ $("td").onchange=()=>$("tgr").onchange();
 $("tgr").onchange=()=>{const g=$("tgr").value,subs=[...new Set(openTasks().filter(t=>norm(t.grade)===norm(g)||norm(t.grade)==="all").map(t=>t.subject))];
  $("tsj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":subs.length?"— Choose subject —":"No tasks right now")+'</option>'+subs.map(s=>'<option>'+esc(s)+'</option>').join("");$("tsj").disabled=!subs.length;showTasks()};
 $("tsj").onchange=showTasks;
-function handoutCard(t){const file=String(t.file||""),name=file.split("/").pop();return'<div class="card task handout"><div class="dl">Lesson Handout</div><h3>'+esc(t.title)+'</h3><div class="ins">'+esc(t.instructions)+'</div><a class="pdf" href="'+esc(file)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(file)+'" download="'+esc(name)+'">Download PDF</a><p class="note" style="text-align:left;margin-top:8px">If it does not open, tap and hold the button, then choose Open link or Download link.</p></div>'}
+function handoutCard(t){const file=String(t.file||""),name=file.split("/").pop(),src="url:"+file;return'<div class="card task handout"><div class="dl">Lesson Handout</div><h3>'+esc(t.title)+'</h3><div class="ins">'+esc(t.instructions)+'</div>'+pdfActionButtons(src,name)+'</div>'}
+function pdfActionButtons(src,name){const a=esc(src),n=esc(name||"task.pdf");return'<button type="button" class="pdfact" data-pdf="open" data-pdfsrc="'+a+'">Open PDF</button><a class="pdf pdfdl" data-pdf="dl" data-pdfsrc="'+a+'" href="#" download="'+n+'">Download PDF</a><p class="note pdfmsg" style="text-align:left;margin-top:8px"></p>'}
 function taskPdfButtons(p,t){if(!p)return"";if(typeof p==="string")p={view:p,download:p,name:String(p).split("?")[0].split("/").pop()};
  const id=String((t&&t.id)||p.taskId||"").trim();
- if((p.via==="taskPdf"||(typeof driveFileId==="function"&&driveFileId((t&&t.pdf)||p.view||"")))&&id){
-  return '<button type="button" class="pdfact" data-pdf="open" data-id="'+esc(id)+'">Open PDF</button><button type="button" class="pdfact" data-pdf="dl" data-id="'+esc(id)+'">Download PDF</button><p class="note pdfmsg" style="text-align:left;margin-top:8px"></p>';
- }
- return '<a class="pdf" href="'+esc(p.view)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(p.download)+'"'+(p.name?' download="'+esc(p.name)+'"':' target="_blank" rel="noopener"')+'>Download PDF</a>'}
-function b64ToBlob(b64,mime){const clean=String(b64||"").replace(/\s+/g,""),bin=atob(clean),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:mime||"application/pdf"})}
+ let src="";
+ if((p.via==="taskPdf"||(typeof driveFileId==="function"&&driveFileId((t&&t.pdf)||p.view||"")))&&id)src="task:"+id;
+ else if(p.via==="url"||p.view){const u=p.view||p.download||"";const parsed=typeof parsePdfSource==="function"?parsePdfSource("url:"+u):{kind:"url",url:u};if(typeof isInlinePdfSource==="function"?isInlinePdfSource(parsed):u)src="url:"+u}
+ if(src)return pdfActionButtons(src,p.name);
+ return'<a class="pdf" href="'+esc(p.view)+'" target="_blank" rel="noopener">Open PDF</a><a class="pdf" href="'+esc(p.download)+'"'+(p.name?' download="'+esc(p.name)+'"':' target="_blank" rel="noopener"')+'>Download PDF</a>'}
+function b64ToBytes(b64){if(typeof b64ToUint8Array==="function")return b64ToUint8Array(b64);const clean=String(b64||"").replace(/\s+/g,""),bin=atob(clean),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
 function safePdfName(n){n=String(n||"task.pdf").replace(/[/\\?%*:|"<>]/g,"").trim()||"task.pdf";if(!/\.pdf$/i.test(n))n+=".pdf";return n}
-function triggerPdfDownload(url,name){const a=document.createElement("a");a.href=url;a.download=name;a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
-function showPdfFallback(card,url,name,text){if(!card)return;let hold=card.querySelector(".pdffall");if(!hold){hold=document.createElement("p");hold.className="note pdffall";hold.style.textAlign="left";hold.style.marginTop="8px";const msg=card.querySelector(".pdfmsg");if(msg&&msg.parentNode)msg.parentNode.insertBefore(hold,msg.nextSibling);else card.appendChild(hold)}hold.innerHTML="";const a=document.createElement("a");a.className="pdf";a.href=url;a.target="_blank";a.rel="noopener";a.download=name;a.textContent=text||"Tap here to open the PDF";hold.appendChild(a)}
-async function openTaskPdf(taskId,mode,btn){
- const card=btn.closest(".card")||btn.parentNode,msg=card&&card.querySelector(".pdfmsg"),buttons=card?card.querySelectorAll(".pdfact"):[btn];
- const setMsg=(t,err)=>{if(!msg)return;msg.textContent=t||"";msg.className="note pdfmsg"+(err?" err":"");msg.style.textAlign="left"};
- const q=typeof taskPdfQuery==="function"?taskPdfQuery(taskId):("action=taskPdf&task="+encodeURIComponent(taskId));
- if(!q){setMsg("Task is missing.",true);return}
- buttons.forEach(b=>b.disabled=true);const prev=btn.textContent;btn.textContent="Loading PDF…";setMsg("Loading the PDF… please wait.");
- let w=null,url="";
- if(mode==="open"){try{w=window.open("about:blank","_blank")}catch(_){w=null}}
- try{
+const PDFJS_SRC="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js";
+const PDFJS_WORKER="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js";
+const PDFJS_SRC_FB="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_WORKER_FB="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const PDF_CACHE={};
+function pdfKey(src){return typeof pdfSourceKey==="function"?pdfSourceKey(src):(src&&src.kind==="task"?"task:"+src.id:"url:"+(src&&src.url||""))}
+function storePdfRec(k,bytes,name,mime){const rec={bytes:bytes,name:safePdfName(name),mime:mime||"application/pdf",blob:new Blob([bytes],{type:mime||"application/pdf"})};PDF_CACHE[k]=rec;return rec}
+function loadPdfBytes(src){const k=pdfKey(src);if(!k)return Promise.reject(new Error("Task is missing."));if(PDF_CACHE[k]&&PDF_CACHE[k].bytes)return Promise.resolve(PDF_CACHE[k]);if(PDF_CACHE[k]&&PDF_CACHE[k].wait)return PDF_CACHE[k].wait;
+ const p=(async()=>{
+  if(src.kind==="task"){
+   const q=typeof taskPdfQuery==="function"?taskPdfQuery(src.id):("action=taskPdf&task="+encodeURIComponent(src.id));
+   const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),60000);
+   let j=null;
+   try{const r=await fetch(API_URL+"?"+q,{cache:"no-store",signal:ac.signal});const txt=await r.text();try{j=JSON.parse(txt)}catch(_){}}
+   finally{clearTimeout(tm)}
+   if(!j||!j.data){const stale=j&&j.ok&&j.app&&!j.data;throw new Error(stale?"The PDF is not ready on the server yet. Please tell your teacher, then try again.":(j&&j.error)||"Couldn't open the PDF. Check your internet and try again.")}
+   return storePdfRec(k,b64ToBytes(j.data),j.name,j.mime||"application/pdf");
+  }
+  const url=src.url;if(!url||/^\s*javascript:/i.test(url))throw new Error("Couldn't open the PDF.");
   const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),60000);
-  let j=null;
-  try{const r=await fetch(API_URL+"?"+q,{cache:"no-store",signal:ac.signal});const txt=await r.text();try{j=JSON.parse(txt)}catch(_){}}
-  finally{clearTimeout(tm)}
-  if(!j||!j.data){const stale=j&&j.ok&&j.app&&!j.data;throw new Error(stale?"The PDF is not ready on the server yet. Please tell your teacher, then try again.":(j&&j.error)||"Couldn't open the PDF. Check your internet and try again.")}
-  const blob=b64ToBlob(j.data,j.mime||"application/pdf"),name=safePdfName(j.name);url=URL.createObjectURL(blob);
-  let opened=false;
-  if(mode==="open"&&w&&!w.closed){try{w.location=url;opened=true}catch(_){}}
-  if(!opened){if(w){try{w.close()}catch(_){}}w=null;triggerPdfDownload(url,name);showPdfFallback(card,url,name,mode==="open"?"If the PDF did not open, tap here.":"If the download did not start, tap here.");setMsg(mode==="open"?"If the PDF did not open in a new tab, use the link below or check your downloads.":"The PDF is downloading. Check your downloads.");if(typeof isInAppBrowser==="function"&&isInAppBrowser(navigator.userAgent)&&typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(card)}
-  else setMsg("");
-  setTimeout(()=>{try{URL.revokeObjectURL(url)}catch(_){}},120000);
+  try{const r=await fetch(url,{cache:"force-cache",signal:ac.signal});if(!r.ok)throw new Error("Couldn't open the PDF. Check your internet and try again.");
+   const buf=new Uint8Array(await r.arrayBuffer());
+   return storePdfRec(k,buf,src.name||String(url).split("?")[0].split("/").pop(),"application/pdf");
+  }finally{clearTimeout(tm)}
+ })();
+ PDF_CACHE[k]={wait:p};
+ return p.then(rec=>rec).catch(e=>{if(PDF_CACHE[k]&&PDF_CACHE[k].wait)delete PDF_CACHE[k];throw e})}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>ok();s.onerror=()=>no(new Error("Couldn't load the PDF viewer."));document.head.appendChild(s)})}
+async function loadPdfJs(){if(window.pdfjsLib)return window.pdfjsLib;if(loadPdfJs._p)return loadPdfJs._p;
+ loadPdfJs._p=(async()=>{let worker=PDFJS_WORKER;try{await loadScript(PDFJS_SRC)}catch(_){await loadScript(PDFJS_SRC_FB);worker=PDFJS_WORKER_FB}
+  const lib=window.pdfjsLib;if(!lib)throw new Error("Couldn't load the PDF viewer.");lib.GlobalWorkerOptions.workerSrc=worker;return lib})();
+ try{return await loadPdfJs._p}catch(e){loadPdfJs._p=null;throw e}}
+async function openPdfDoc(bytes){const lib=await loadPdfJs();try{return await lib.getDocument({data:bytes.slice()}).promise}catch(e){try{lib.disableWorker=true}catch(_){}return await lib.getDocument({data:bytes.slice(),disableWorker:true}).promise}}
+function wireDownloadLink(root,rec){if(!root||!rec)return;(root.querySelectorAll?root.querySelectorAll("a.pdfdl, a.pdfdla"):[]).forEach(a=>{if(a._blobUrl){try{URL.revokeObjectURL(a._blobUrl)}catch(_){}}const url=URL.createObjectURL(rec.blob);a._blobUrl=url;a.href=url;a.setAttribute("download",rec.name);a.download=rec.name})}
+function cardMsg(card,text,err){const msg=card&&card.querySelector(".pdfmsg");if(!msg)return;msg.textContent=text||"";msg.className="note pdfmsg"+(err?" err":"");msg.style.textAlign="left"}
+function prefetchCardPdfs(root){(root||document).querySelectorAll("[data-pdfsrc]").forEach(el=>{const src=typeof parsePdfSource==="function"?parsePdfSource(el.getAttribute("data-pdfsrc")):null;if(!src)return;loadPdfBytes(src).then(rec=>wireDownloadLink(el.closest(".card")||el.parentNode,rec)).catch(()=>{})})}
+let PV={open:false,z:1,pdf:null,rendering:false};
+function pdfSetZoom(z){PV.z=Math.max(0.6,Math.min(3,z));const box=$("pdfzoom");if(!box)return;if("zoom" in box.style){box.style.zoom=String(PV.z);box.style.transform="";box.style.width=""}else{box.style.zoom="";box.style.transformOrigin="top left";box.style.transform="scale("+PV.z+")";box.style.width=(100/PV.z)+"%"}}
+function pdfClose(){if(!PV.open)return;PV.open=false;const v=$("pdfview");if(v){v.hidden=true;v.classList.remove("on")}document.body.classList.remove("pdf-open");$("pdfpages")&&($("pdfpages").innerHTML="");if(PV.pdf){try{PV.pdf.destroy()}catch(_){}}PV.pdf=null;if(PV.pop){PV.pop=false;try{if(history.state&&history.state.pdfview)history.back()}catch(_){}}}
+async function pdfRenderPages(pdf){const stage=$("pdfstage"),hold=$("pdfpages");if(!stage||!hold)return;hold.innerHTML="";const cssW=Math.max(280,stage.clientWidth||window.innerWidth||320),dpr=Math.min(2,window.devicePixelRatio||1);
+ for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);if(!PV.open)return;const base=page.getViewport({scale:1}),scale=(cssW/base.width)*dpr,vp=page.getViewport({scale});const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;c.style.width="100%";c.style.height="auto";hold.appendChild(c);await page.render({canvasContext:c.getContext("2d",{alpha:false}),viewport:vp}).promise}
+ pdfUpdatePage();}
+function pdfUpdatePage(){const stage=$("pdfstage"),hold=$("pdfpages"),lab=$("pdfpg");if(!stage||!hold||!lab)return;const cs=[...hold.querySelectorAll("canvas")];if(!cs.length){lab.textContent="";return}const top=stage.getBoundingClientRect().top+Math.min(80,stage.clientHeight*0.25);let n=1;cs.forEach((c,i)=>{if(c.getBoundingClientRect().top<=top)n=i+1});lab.textContent=n+" / "+cs.length}
+async function openInlinePdf(src,btn,title){const card=btn&&(btn.closest(".card")||btn.parentNode);if(!src){cardMsg(card,"Task is missing.",true);return}
+ const v=$("pdfview"),wait=$("pdfwait"),err=$("pdferr"),hold=$("pdfpages");if(!v)return;
+ const prev=btn&&btn.textContent;if(btn&&btn.tagName==="BUTTON"){btn.disabled=true;btn.textContent="Loading PDF…"}
+ cardMsg(card,"Loading the PDF… please wait.");
+ v.hidden=false;v.classList.add("on");document.body.classList.add("pdf-open");PV.open=true;PV.z=1;pdfSetZoom(1);
+ if(hold)hold.innerHTML="";if(wait)wait.style.display="";if(err){err.style.display="none";err.textContent=""}
+ $("pdfptitle").textContent=title||(card&&card.querySelector("h3")&&card.querySelector("h3").textContent)||"PDF";
+ $("pdfpg").textContent="";
+ try{if(!PV.pop){try{history.pushState({pdfview:1},"",location.href);PV.pop=true}catch(_){}}
+  const rec=await loadPdfBytes(src);wireDownloadLink(card,rec);wireDownloadLink(v,rec);
+  cardMsg(card,"");
+  const pdf=await openPdfDoc(rec.bytes);if(!PV.open){try{pdf.destroy()}catch(_){}return}PV.pdf=pdf;
+  if(wait)wait.style.display="none";
+  await pdfRenderPages(pdf);
  }catch(e){
-  if(w){try{w.close()}catch(_){}}
-  if(url){try{URL.revokeObjectURL(url)}catch(_){}}
-  const abort=e&&(e.name==="AbortError"||/abort/i.test(String(e.message||e)));
-  setMsg(abort?"The PDF is taking too long. Check your internet and try again.":(e&&e.message)||"Couldn't open the PDF. Check your internet and try again.",true);
-  if(typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(card);
+  if(wait)wait.style.display="none";
+  const abort=e&&(e.name==="AbortError"||/abort/i.test(String(e&&e.message||e)));
+  const text=abort?"The PDF is taking too long. Check your internet and try again.":(e&&e.message)||"Couldn't open the PDF. Check your internet and try again.";
+  if(err){err.style.display="block";err.textContent=text}cardMsg(card,text,true);
+  if(typeof attachInAppChromeHelp==="function"){attachInAppChromeHelp(err||card);if(card)attachInAppChromeHelp(card)}
  }
- buttons.forEach(b=>b.disabled=false);btn.textContent=prev;
+ if(btn&&btn.tagName==="BUTTON"){btn.disabled=false;btn.textContent=prev||"Open PDF"}
 }
-function bindTaskPdfButtons(root){(root||document).querySelectorAll(".pdfact").forEach(b=>{if(b._pdfBound)return;b._pdfBound=true;b.addEventListener("click",ev=>{ev.preventDefault();const id=b.getAttribute("data-id"),mode=b.getAttribute("data-pdf");if(id)openTaskPdf(id,mode,b)})})}
+function bindTaskPdfButtons(root){
+ const box=root||document;
+ box.querySelectorAll("[data-pdf=open]").forEach(b=>{if(b._pdfBound)return;b._pdfBound=true;b.addEventListener("click",ev=>{ev.preventDefault();const src=typeof parsePdfSource==="function"?parsePdfSource(b.getAttribute("data-pdfsrc")):null;if(src)openInlinePdf(src,b)})});
+ box.querySelectorAll("a.pdfdl").forEach(a=>{if(a._pdfBound)return;a._pdfBound=true;a.addEventListener("click",ev=>{const href=a.getAttribute("href")||"";if(href&&href!=="#")return;ev.preventDefault();const card=a.closest(".card")||a.parentNode,src=typeof parsePdfSource==="function"?parsePdfSource(a.getAttribute("data-pdfsrc")):null;if(!src)return;cardMsg(card,"Preparing the PDF… please wait, then tap Download PDF again.");loadPdfBytes(src).then(rec=>{wireDownloadLink(card,rec);cardMsg(card,"The PDF is ready. Tap Download PDF again.")}).catch(e=>{cardMsg(card,(e&&e.message)||"Couldn't open the PDF. Check your internet and try again.",true);if(typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(card)})})});
+ prefetchCardPdfs(box);
+}
+(function setupPdfViewer(){
+ const v=$("pdfview"); if(!v)return;
+ const close=$("pdfclose"), zm=$("pdfzm"), zp=$("pdfzp"), zf=$("pdfzfit"), stage=$("pdfstage");
+ if(close)close.onclick=()=>pdfClose();
+ if(zm)zm.onclick=()=>pdfSetZoom(PV.z-0.25);
+ if(zp)zp.onclick=()=>pdfSetZoom(PV.z+0.25);
+ if(zf)zf.onclick=()=>pdfSetZoom(1);
+ if(stage)stage.addEventListener("scroll",pdfUpdatePage,{passive:true});
+ window.addEventListener("resize",()=>{if(!PV.open||!PV.pdf||PV.rendering)return;clearTimeout(PV.rt);PV.rt=setTimeout(()=>{if(PV.open&&PV.pdf){PV.rendering=true;pdfRenderPages(PV.pdf).finally(()=>{PV.rendering=false})}},200)});
+ window.addEventListener("popstate",()=>{if(PV.open){PV.pop=false;pdfClose()}});
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&PV.open){e.preventDefault();pdfClose()}});
+ let pinch0=0,z0=1;
+ function dist(a,b){const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;return Math.hypot(dx,dy)}
+ if(stage){
+  stage.addEventListener("touchstart",e=>{if(e.touches.length===2){pinch0=dist(e.touches[0],e.touches[1]);z0=PV.z}},{passive:true});
+  stage.addEventListener("touchmove",e=>{if(e.touches.length===2&&pinch0){e.preventDefault();pdfSetZoom(z0*(dist(e.touches[0],e.touches[1])/pinch0))}},{passive:false});
+  stage.addEventListener("touchend",e=>{if(e.touches.length<2)pinch0=0},{passive:true});
+ }
+})();
 function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note=document.getElementById("tasknote");if(!s){box.innerHTML="";if(note)note.style.display="";return}
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";

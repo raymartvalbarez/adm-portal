@@ -87,6 +87,22 @@ html.sv-games #games>h2.sec{display:none}
 #iabbar button.iabgo:disabled::before, .iabhelp button.iabgo:disabled::before{display:none;content:none;width:0;height:0;border:0;animation:none}
 .iabhelp{margin-top:10px;padding:12px;border-radius:14px;background:#fff7e0;color:#7a4a00;text-align:center}
 .iabhelp p{margin:0 0 10px;font-weight:800;font-size:1rem;line-height:1.35}
+
+#pdfview{display:none;position:fixed;inset:0;z-index:40;flex-direction:column;background:#111;color:#fff}
+#pdfview.on{display:flex}
+#pdfview .pdftop{display:flex;align-items:center;gap:8px;flex:none;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:#14532d}
+#pdfview .pdftop #pdfclose{width:auto;min-width:72px;min-height:44px;margin:0;padding:8px 14px;flex:none;background:#fff;color:#14532d;box-shadow:none;font-size:1rem}
+#pdfview #pdfptitle{flex:1;min-width:0;font-weight:800;font-size:1rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pdfview #pdfpg{flex:none;font-weight:700;font-size:.9rem;white-space:nowrap}
+#pdfview .pdftools{display:flex;gap:8px;flex:none;padding:8px 10px;background:#0f3d24}
+#pdfview .pdftools button,#pdfview .pdftools a{flex:1;min-height:44px;margin:0;padding:8px;box-shadow:none;font-size:.95rem;background:var(--acc);color:#3b2600}
+#pdfview #pdfstage{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;overscroll-behavior:contain;padding:8px 8px calc(12px + env(safe-area-inset-bottom));background:#1a1a1a}
+#pdfview #pdfzoom{transform-origin:top left}
+#pdfview #pdfpages canvas{display:block;width:100%;height:auto;margin:0 0 10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#pdfview #pdfwait{color:#ddd}
+#pdfview #pdferr{margin:12px;padding:12px;border-radius:14px;background:var(--nobg);color:#fecaca;display:none;text-align:center}
+body.pdf-open{overflow:hidden}
+body.pdf-open nav.tabs{display:none!important}
 </style><script>
 (function(){var V={quiz:1,tasks:1,games:1,handouts:1};function c(v){v=String(v||"").toLowerCase().trim();if(v==="task")v="tasks";if(v==="game")v="games";if(v==="handout")v="handouts";return V[v]?v:""}function pick(){try{var m=/(?:^|[?&])view=([^&]*)/.exec(location.search);if(m){var q=c(decodeURIComponent(m[1]));if(q)return q}var h=(location.hash||"").replace(/^#/,"");m=/(?:^|[?&])view=([^&]*)/.exec(h);if(m){q=c(decodeURIComponent(m[1]));if(q)return q}var ua=navigator.userAgent||"",app=ua.indexOf("Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")>=0||/BagoSHSADM(Student|Teacher)/i.test(ua),bare=c(h.split(/[?&]/)[0]);if(app&&bare)return bare}catch(e){}return""}var s=pick();if(s){document.documentElement.className=(document.documentElement.className+" sv-mode sv-"+s).trim();document.documentElement.setAttribute("data-view",s)}})();
 </script>
@@ -128,8 +144,15 @@ html.sv-games #games>h2.sec{display:none}
 <footer>ADM Portal by Sir Raymart Valbarez<br><a class="tlink" href="teacher.html">🔒 Teacher</a></footer>
 </main>
 <nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button></nav>
-<script src="logic.js?v=20261112d"></script>
+<div id="pdfview" hidden>
+  <div class="pdftop"><button type="button" id="pdfclose">Close</button><div id="pdfptitle">PDF</div><div id="pdfpg"></div></div>
+  <div class="pdftools"><button type="button" id="pdfzm" aria-label="Zoom out">−</button><button type="button" id="pdfzfit">Fit width</button><button type="button" id="pdfzp" aria-label="Zoom in">+</button><a class="pdfdla" id="pdfvdl" download>Download</a></div>
+  <div id="pdfwait" class="wait">Loading PDF…</div>
+  <div id="pdferr"></div>
+  <div id="pdfstage"><div id="pdfzoom"><div id="pdfpages"></div></div></div>
+</div>
+<script src="logic.js?v=20261112e"></script>
 <script src="config.js?v=20261105w"></script>
 <script src="data.js?v=20261110a"></script>
-<script src="app.js?v=20261112i"></script>
+<script src="app.js?v=20261112j"></script>
 </body></html>

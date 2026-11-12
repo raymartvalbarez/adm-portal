@@ -152,9 +152,9 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261112d/);
+  assert.match(html, /logic\.js\?v=20261112e/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112i/);
+  assert.match(html, /app\.js\?v=20261112j/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -251,8 +251,8 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112i/);
-  assert.match(html, /logic\.js\?v=20261112d/);
+  assert.match(html, /app\.js\?v=20261112j/);
+  assert.match(html, /logic\.js\?v=20261112e/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -309,15 +309,17 @@ test("Drive PDF links from the PDF Link column become view + download buttons; .
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(app, /taskPdfLinks\(t\)/);
   assert.match(app, /taskPdfButtons\(pdf,t\)/);
-  assert.match(app, /function openTaskPdf/);
   assert.match(app, /action=taskPdf&task=/);
+  assert.match(app, /function openInlinePdf/);
+  assert.match(app, /getDocument\(\{data:/);
+  assert.match(app, /pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
+  assert.match(app, /pdf\.worker\.min\.js/);
+  assert.match(app, /function prefetchCardPdfs/);
+  assert.match(app, /function wireDownloadLink/);
   assert.match(app, /createObjectURL/);
-  assert.match(app, /window\.open\("about:blank"/);
-  assert.match(app, /triggerPdfDownload/);
-  assert.match(app, /showPdfFallback/);
-  // GitHub-hosted handouts still use ordinary Open/Download links, not the proxy
   assert.match(app, /function handoutCard/);
-  assert.match(app, /href="'\+esc\(file\)\+'" target="_blank"/);
+  assert.match(app, /data-pdf="open"/);
+  assert.doesNotMatch(app, /window\.open\("about:blank"/);
 });
 
 test("teacher page is PIN-gated, linked discreetly from the student home footer, and has a back link", () => {
@@ -417,14 +419,48 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /id="iabbar"/);
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
-  assert.match(teacher, /logic\.js\?v=20261112d/);
+  assert.match(teacher, /logic\.js\?v=20261112e/);
   assert.match(teacher, /teacher\.js\?v=20261112c/);
-  assert.match(index, /logic\.js\?v=20261112d/);
-  assert.match(index, /app\.js\?v=20261112i/);
+  assert.match(index, /logic\.js\?v=20261112e/);
+  assert.match(index, /app\.js\?v=20261112j/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
   assert.match(tjs, /fillInAppChromeBar/);
   assert.match(tjs, /attachInAppChromeHelp/);
   assert.doesNotMatch(tjs, /pdfhint/);
+});
+
+test("inline PDF viewer decodes base64, parses sources, and is wired in the portal", () => {
+  const bytes = logic.b64ToUint8Array(Buffer.from("%PDF-1.4\n% test\n").toString("base64"));
+  assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-");
+  assert.equal(logic.b64ToUint8Array("").length, 0);
+  assert.deepEqual(logic.parsePdfSource("task:G12-ENT-20261112-PLAN"), { kind: "task", id: "G12-ENT-20261112-PLAN" });
+  assert.deepEqual(logic.parsePdfSource("url:handouts/Entrep_Week9_Handout.pdf"), { kind: "url", url: "handouts/Entrep_Week9_Handout.pdf" });
+  assert.equal(logic.parsePdfSource("url:javascript:alert(1)"), null);
+  assert.equal(logic.parsePdfSource(""), null);
+  assert.equal(logic.pdfSourceKey({ kind: "task", id: "T1" }), "task:T1");
+  assert.equal(logic.isInlinePdfSource({ kind: "task", id: "T1" }), true);
+  assert.equal(logic.isInlinePdfSource({ kind: "url", url: "handouts/Entrep_Week9_Handout.pdf" }), true);
+  assert.equal(logic.isInlinePdfSource({ kind: "url", url: "https://raymartvalbarez.github.io/adm-portal/handouts/x.pdf" }), true);
+  assert.equal(logic.isInlinePdfSource({ kind: "url", url: "https://evil.example/x.pdf" }), false);
+
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.match(html, /id="pdfview"/);
+  assert.match(html, /id="pdfclose"/);
+  assert.match(html, /id="pdfzfit"/);
+  assert.match(html, />Fit width</);
+  assert.match(html, /id="pdfpages"/);
+  assert.match(html, /app\.js\?v=20261112j/);
+  assert.match(html, /logic\.js\?v=20261112e/);
+  assert.match(html, /body\.pdf-open nav\.tabs/);
+  assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
+  assert.match(app, /getDocument\(\{data:/);
+  assert.match(app, /function openInlinePdf/);
+  assert.match(app, /function prefetchCardPdfs/);
+  assert.match(app, /The PDF is ready\. Tap Download PDF again/);
+  assert.match(app, /pdfSetZoom/);
+  assert.match(app, /handoutCard/);
+  assert.match(app, /data-pdfsrc="'\+a\+'/);
 });
