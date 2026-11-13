@@ -142,10 +142,10 @@ test("section and name lists follow the live learner shape", () => {
 test("games stay open and the tab bar still clears the page", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.match(html, /Open for ADM · Nov\. 10 games through Nov\. 13, 2026, 11:59 PM/);
+  assert.match(html, /Open now for everyone · Nov\. 13, 2026, through 11:59 PM \(Asia\/Manila\)/);
   assert.match(html, /Still 1 try only/);
-  assert.equal((html.match(/▶ Play/g) || []).length, 3);
-  for (const game of ["integer-racer", "integer-archer", "treasure-diver"]) {
+  assert.equal((html.match(/▶ Play/g) || []).length, 4);
+  for (const game of ["integer-racer", "integer-archer", "treasure-diver", "island-navigator"]) {
     assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/"'));
     assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html"));
   }
@@ -154,7 +154,7 @@ test("games stay open and the tab bar still clears the page", () => {
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261112e/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261112j/);
+  assert.match(html, /app\.js\?v=20261113a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -251,7 +251,7 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261112j/);
+  assert.match(html, /app\.js\?v=20261113a/);
   assert.match(html, /logic\.js\?v=20261112e/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
@@ -422,7 +422,7 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(teacher, /logic\.js\?v=20261112e/);
   assert.match(teacher, /teacher\.js\?v=20261112c/);
   assert.match(index, /logic\.js\?v=20261112e/);
-  assert.match(index, /app\.js\?v=20261112j/);
+  assert.match(index, /app\.js\?v=20261113a/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -452,7 +452,7 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261112j/);
+  assert.match(html, /app\.js\?v=20261113a/);
   assert.match(html, /logic\.js\?v=20261112e/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
