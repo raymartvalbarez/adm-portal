@@ -295,6 +295,9 @@ function gameEnv() {
       "scores/ben": { name: "Ben Santos", grade: "12", section: "HUMSS", total: 200, bestLevel: 5, ts: 1794271000000 }
     }},
     "https://mantledb.sh/v2/export/bnhs-tdiver-nov10-2026": { entries: {} },
+    "https://mantledb.sh/v2/export/bnhs-iracer-nov13-2026": { entries: {
+      "scores/ben": { name: "Ben Santos", grade: "12", section: "HUMSS", total: 80, bestLevel: 3, ts: 1794480000000 }
+    }},
     "https://mantledb.sh/v2/export/bnhs-inavigator-nov2026": { entries: {
       "scores/no-date": { name: "Old Score", grade: "11", section: "ACADS", total: 50, bestLevel: 3 }
     }}
@@ -315,13 +318,13 @@ test("Code.gs: syncGameScores writes a new Game Scores tab and leaves other tabs
   const r = e.ctx.syncGameScores();
   assert.equal(r.ok, true);
   assert.equal(r.tab, "Game Scores");
-  assert.equal(r.rows, 3);
+  assert.equal(r.rows, 4);
   assert.deepEqual(e.sheets["Tasks"].rows, tasksBefore);
   const sh = e.sheets["Game Scores"];
   assert.ok(sh);
   assert.deepEqual(sh.rows[0].slice(0, 7), ["Date (Asia/Manila)", "Game", "Grade", "Section", "Name", "Score", "Best Level"]);
   const names = sh.rows.slice(1).map((row) => row[4]).sort();
-  assert.deepEqual(names, ["Ana Cruz", "Ben Santos", "Old Score"]);
+  assert.deepEqual(names, ["Ana Cruz", "Ben Santos", "Ben Santos", "Old Score"]);
   const old = sh.rows.find((row) => row[4] === "Old Score");
   assert.equal(old[0], ""); // no timestamp -> blank date, All time only on the boards
   assert.equal(old[1], "Island Navigator");
@@ -332,8 +335,8 @@ test("Code.gs: syncGameScores replaces previous rows instead of appending duplic
   const e = gameEnv();
   e.ctx.syncGameScores();
   const r = e.ctx.syncGameScores();
-  assert.equal(r.rows, 3);
+  assert.equal(r.rows, 4);
   const sh = e.sheets["Game Scores"];
   const names = sh.rows.slice(1).map((row) => row[4]).filter(Boolean);
-  assert.equal(names.length, 3);
+  assert.equal(names.length, 4);
 });

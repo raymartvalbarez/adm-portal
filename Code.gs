@@ -417,7 +417,8 @@ function teacherToggle_(d){
 
 /**
  * Game Scores tab — a read-only sync of Integer Archer, Integer Racer,
- * Treasure Diver, and Island Navigator leaderboards from MantleDB.
+ * Treasure Diver, and Island Navigator leaderboards from MantleDB
+ * (Nov 10–12 namespaces and the Nov 13 namespaces).
  * Never renames, reorders, or deletes other tabs. Creates "Game Scores"
  * only if it is missing, and only at the end of the workbook.
  */
@@ -425,9 +426,13 @@ var GAME_SCORES_TAB = 'Game Scores';
 var GAME_SCORES_HEADERS = ['Date (Asia/Manila)', 'Game', 'Grade', 'Section', 'Name', 'Score', 'Best Level'];
 var GAME_SOURCES = [
   { name: 'Integer Archer', url: 'https://mantledb.sh/v2/export/bnhs-iarcher-nov10-2026', max: 5000 },
+  { name: 'Integer Archer', url: 'https://mantledb.sh/v2/export/bnhs-iarcher-nov13-2026', max: 5000 },
   { name: 'Integer Racer', url: 'https://mantledb.sh/v2/export/bnhs-iracer-nov10-2026', max: 5000 },
+  { name: 'Integer Racer', url: 'https://mantledb.sh/v2/export/bnhs-iracer-nov13-2026', max: 5000 },
   { name: 'Treasure Diver', url: 'https://mantledb.sh/v2/export/bnhs-tdiver-nov10-2026', max: 5000 },
-  { name: 'Island Navigator', url: 'https://mantledb.sh/v2/export/bnhs-inavigator-nov2026', max: 1500 }
+  { name: 'Treasure Diver', url: 'https://mantledb.sh/v2/export/bnhs-tdiver-nov13-2026', max: 5000 },
+  { name: 'Island Navigator', url: 'https://mantledb.sh/v2/export/bnhs-inavigator-nov2026', max: 1500 },
+  { name: 'Island Navigator', url: 'https://mantledb.sh/v2/export/bnhs-inavigator-nov13-2026', max: 1500 }
 ];
 
 function gameScoresSheet_(){
