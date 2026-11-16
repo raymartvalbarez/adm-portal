@@ -139,16 +139,16 @@ test("section and name lists follow the live learner shape", () => {
   assert.match(app, /secs\.length===1\?secs\[0\]:""/);
 });
 
-test("games stay open and the tab bar still clears the page", () => {
+test("games are closed and the tab bar still clears the page", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.match(html, /Open now for everyone · Nov\. 13, 2026, through 11:59 PM \(Asia\/Manila\)/);
-  assert.match(html, /Fresh try for every learner today/);
-  assert.match(html, /Still 1 try for this Nov\. 13 round/);
-  assert.equal((html.match(/▶ Play/g) || []).length, 4);
+  assert.match(html, /Games are closed/);
+  assert.match(html, /Leaderboards are still open, and all saved scores are kept/);
+  assert.equal((html.match(/▶ Play/g) || []).length, 0);
+  assert.equal((html.match(/🔒 Closed/g) || []).length, 4);
   for (const game of ["integer-racer", "integer-archer", "treasure-diver", "island-navigator"]) {
-    assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?v=20261113c"'));
-    assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html\\?v=20261113c"));
+    assert.doesNotMatch(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?'));
+    assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html\\?v=20261116a"));
   }
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
