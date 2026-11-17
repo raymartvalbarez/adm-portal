@@ -57,10 +57,10 @@ input[type=file]::file-selector-button{display:block;width:100%;min-height:56px;
 .wait::before{content:"";display:block;margin:0 auto 10px;width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp 1s linear infinite}
 .info{text-align:left;margin:10px 0 0}
 .seg{display:flex;gap:6px;margin:0 auto 12px;max-width:640px;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);position:relative;z-index:5}
-.seg button{margin:0;flex:1;min-height:50px;font-size:1.05rem;background:transparent;color:var(--muted);box-shadow:none;border-radius:12px}
+.seg button{margin:0;flex:1;min-height:50px;font-size:.95rem;background:transparent;color:var(--muted);box-shadow:none;border-radius:12px;padding:8px 4px}
 .seg button.on{background:var(--brand);color:#fff}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.06)}
-nav.tabs button{margin:0;min-height:58px;flex:1;flex-direction:column;gap:2px;font-size:.85rem;background:transparent;color:var(--muted);box-shadow:none;border-radius:14px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+nav.tabs button{margin:0;min-height:58px;flex:1;flex-direction:column;gap:2px;font-size:.78rem;background:transparent;color:var(--muted);box-shadow:none;border-radius:14px;padding:6px 2px}
 nav.tabs button svg{width:24px;height:24px}nav.tabs button.on{background:var(--sel);color:var(--brand)}
 @media (prefers-color-scheme:dark){nav.tabs button.on{color:#86efac}}
 footer{text-align:center;font-size:.8rem;color:var(--muted);padding:6px 0 12px}
@@ -68,13 +68,35 @@ a.tlink{display:inline-block;margin-top:8px;padding:5px 12px;font-size:.78rem;fo
 a.tlink:active{opacity:.7}
 .games{display:grid;gap:12px}.gm{display:flex;flex-direction:column;gap:10px}.gm .gt{display:flex;align-items:center;gap:12px}.gm .ic{font-size:2rem;width:56px;height:56px;flex:none;border-radius:16px;display:grid;place-items:center;background:var(--sel)}.gm h3{margin:0;font-size:1.1rem}.gm p{margin:2px 0 0;font-size:.88rem;color:var(--muted)}.gb{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gb a{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:14px;font-weight:800;text-decoration:none;font-size:1rem;text-align:center;padding:8px}.gb .pl{background:var(--brand);color:#fff}.gb .pl.closed,.gb span.pl{background:#cfd8dc;color:#455a64;pointer-events:none;cursor:default}.gb .lb{background:var(--card);color:var(--brand);border:2px solid var(--brand)}
 
+
+.vwrap{position:relative;background:#000;border-radius:16px;overflow:hidden}
+.vwrap video{width:100%;height:auto;max-height:70vh;display:block;background:#000;vertical-align:middle}
+.vplay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;margin:0;padding:16px;border:0;border-radius:0;background:rgba(0,0,0,.4);color:#fff;box-shadow:none;min-height:180px;font-size:1.05rem}
+.vplay:disabled::before{display:none;content:none;width:0;height:0;border:0;animation:none}
+.vplay .vgo{width:74px;height:74px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:2rem;line-height:1;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.vplay.off{display:none}
+.vmeta{margin:10px 0 0}
+.vmeta h3{margin:0 0 4px;font-size:1.15rem}
+.vbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.vbar a,.vbar button.vhd{width:auto;flex:1;min-width:120px;min-height:48px;margin:0;padding:10px 12px;font-size:.95rem;text-decoration:none;text-align:center;border-radius:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.vbar a.vdl{background:var(--card);color:var(--brand);border:2px solid var(--brand);box-shadow:none}
+.vbar button.vhd{background:var(--sel);color:var(--brand);box-shadow:none}
+.vbar button.vhd.on{background:var(--brand);color:#fff}
+.vfail{margin-top:10px;padding:12px;border-radius:14px;background:var(--nobg);color:var(--no);text-align:center;font-weight:700}
+.vfail[hidden]{display:none}
+.eplist{display:grid;gap:8px;margin:12px 0 8px}
+.epitem{width:100%;text-align:left;margin:0;padding:12px 14px;min-height:56px;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:16px;box-shadow:none;display:block;font-weight:600}
+.epitem.on{border-color:var(--brand);background:var(--sel)}
+.epitem:disabled::before{display:none;content:none;width:0;height:0;border:0;animation:none}
+.epitem .epl{font-weight:800;color:var(--brand)}
+.epitem .epw{float:right;font-size:.8rem;color:var(--ok)}
 #svbar{display:none;background:linear-gradient(160deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:16px 16px 18px}#svbar .svinner{max-width:640px;margin:0 auto}#svbar h1{margin:2px 0 0;font-size:1.35rem;line-height:1.2}
 html.sv-mode #svbar,html.sv-mode #svbar[hidden]{display:block}
 html.sv-mode body>header,html.sv-mode .seg,html.sv-mode nav.tabs{display:none!important}
 html.sv-mode,html.sv-mode body{padding-bottom:16px;scroll-padding-bottom:16px}
 html.sv-mode main{margin-top:16px}
-html.sv-quiz #tasks,html.sv-quiz #games,html.sv-tasks #quiz,html.sv-tasks #games,html.sv-handouts #quiz,html.sv-handouts #games,html.sv-games #quiz,html.sv-games #tasks{display:none!important}
-html.sv-quiz #quiz,html.sv-tasks #tasks,html.sv-handouts #tasks,html.sv-games #games{display:block!important}
+html.sv-quiz #tasks,html.sv-quiz #games,html.sv-quiz #motivation,html.sv-tasks #quiz,html.sv-tasks #games,html.sv-tasks #motivation,html.sv-handouts #quiz,html.sv-handouts #games,html.sv-handouts #motivation,html.sv-games #quiz,html.sv-games #tasks,html.sv-games #motivation,html.sv-motivation #quiz,html.sv-motivation #tasks,html.sv-motivation #games{display:none!important}
+html.sv-quiz #quiz,html.sv-tasks #tasks,html.sv-handouts #tasks,html.sv-games #games,html.sv-motivation #motivation{display:block!important}
 html.sv-handouts .task:not(.handout){display:none}
 html.sv-games #games>h2.sec{display:none}
 
@@ -104,7 +126,7 @@ html.sv-games #games>h2.sec{display:none}
 body.pdf-open{overflow:hidden}
 body.pdf-open nav.tabs{display:none!important}
 </style><script>
-(function(){var V={quiz:1,tasks:1,games:1,handouts:1};function c(v){v=String(v||"").toLowerCase().trim();if(v==="task")v="tasks";if(v==="game")v="games";if(v==="handout")v="handouts";return V[v]?v:""}function pick(){try{var m=/(?:^|[?&])view=([^&]*)/.exec(location.search);if(m){var q=c(decodeURIComponent(m[1]));if(q)return q}var h=(location.hash||"").replace(/^#/,"");m=/(?:^|[?&])view=([^&]*)/.exec(h);if(m){q=c(decodeURIComponent(m[1]));if(q)return q}var ua=navigator.userAgent||"",app=ua.indexOf("Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")>=0||/BagoSHSADM(Student|Teacher)/i.test(ua),bare=c(h.split(/[?&]/)[0]);if(app&&bare)return bare}catch(e){}return""}var s=pick();if(s){document.documentElement.className=(document.documentElement.className+" sv-mode sv-"+s).trim();document.documentElement.setAttribute("data-view",s)}})();
+(function(){var V={quiz:1,tasks:1,games:1,handouts:1,motivation:1};function c(v){v=String(v||"").toLowerCase().trim();if(v==="task")v="tasks";if(v==="game")v="games";if(v==="handout")v="handouts";if(v==="video"||v==="videos"||v==="clips"||v==="motivate")v="motivation";return V[v]?v:""}function pick(){try{var m=/(?:^|[?&])view=([^&]*)/.exec(location.search);if(m){var q=c(decodeURIComponent(m[1]));if(q)return q}var h=(location.hash||"").replace(/^#/,"");m=/(?:^|[?&])view=([^&]*)/.exec(h);if(m){q=c(decodeURIComponent(m[1]));if(q)return q}var ua=navigator.userAgent||"",app=ua.indexOf("Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")>=0||/BagoSHSADM(Student|Teacher)/i.test(ua),bare=c(h.split(/[?&]/)[0]);if(app&&bare)return bare}catch(e){}return""}var s=pick();if(s){document.documentElement.className=(document.documentElement.className+" sv-mode sv-"+s).trim();document.documentElement.setAttribute("data-view",s)}})();
 </script>
 </head><body>
 <div id="iabbar" hidden></div>
@@ -116,7 +138,7 @@ body.pdf-open nav.tabs{display:none!important}
 <div class="hcd" id="hcd"></div>
 </header>
 <main>
-<div class="seg" id="seg"><button id="sq" class="on">📝 Quiz</button><button id="st2">📷 Tasks</button></div>
+<div class="seg" id="seg"><button id="sq" class="on">📝 Quiz</button><button id="st2">📷 Tasks</button><button id="sm">🎬 Motivation</button></div>
 <div class="closed" id="notopen" style="display:none">The ADM Portal is not open yet.<br><span style="font-weight:400;font-size:.95rem">Please wait for your teacher's announcement in the GC.</span></div>
 <div class="wait" id="loading">Loading…</div>
 
@@ -140,10 +162,14 @@ body.pdf-open nav.tabs{display:none!important}
 <div id="tlist"></div>
 <p class="note" id="tasknote">Take clear photos of your work (1 to 5 photos). One submission per task.</p>
 </section>
+<section id="motivation" style="display:none">
+<h2 class="sec">🎬 Motivation</h2>
+<div id="epbox"><div class="closed" id="epempty">Episode 1 coming soon</div></div>
+</section>
 <section id="games"><h2 class="sec">🎮 Games</h2><div class="card" id="gopen" style="text-align:center;font-weight:800;margin-bottom:12px"><div style="font-size:1.05rem">🔒 Games are closed</div><p class="note" style="margin:8px 0 0">Integer Racer, Integer Archer, Treasure Diver, and Island Navigator are closed for now. Leaderboards are still open, and all saved scores are kept.</p></div><div class="games" id="glist"><div class="card gm"><div class="gt"><div class="ic">🏎️</div><div><h3>Integer Racer</h3><p>Race by solving integer problems.</p></div></div><div class="gb"><span class="pl closed" aria-disabled="true">🔒 Closed</span><a class="lb" href="https://raymartvalbarez.github.io/integer-racer/leaderboard.html?v=20261116a" target="_blank" rel="noopener">🏆 Leaderboard</a></div></div><div class="card gm"><div class="gt"><div class="ic">🏹</div><div><h3>Integer Archer</h3><p>Aim and shoot the right integer answer.</p></div></div><div class="gb"><span class="pl closed" aria-disabled="true">🔒 Closed</span><a class="lb" href="https://raymartvalbarez.github.io/integer-archer/leaderboard.html?v=20261116a" target="_blank" rel="noopener">🏆 Leaderboard</a></div></div><div class="card gm"><div class="gt"><div class="ic">🤿</div><div><h3>Treasure Diver</h3><p>Dive deep and collect treasure.</p></div></div><div class="gb"><span class="pl closed" aria-disabled="true">🔒 Closed</span><a class="lb" href="https://raymartvalbarez.github.io/treasure-diver/leaderboard.html?v=20261116a" target="_blank" rel="noopener">🏆 Leaderboard</a></div></div><div class="card gm"><div class="gt"><div class="ic">⛵</div><div><h3>Island Navigator</h3><p>Sail from island to island using bearings and triangles.</p></div></div><div class="gb"><span class="pl closed" aria-disabled="true">🔒 Closed</span><a class="lb" href="https://raymartvalbarez.github.io/island-navigator/leaderboard.html?v=20261116a" target="_blank" rel="noopener">🏆 Leaderboard</a></div></div></div><p class="note">Leaderboards stay open. All earlier scores are saved.</p></section>
 <footer>ADM Portal by Sir Raymart Valbarez<br><a class="tlink" href="teacher.html">🔒 Teacher</a></footer>
 </main>
-<nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button></nav>
+<nav class="tabs"><button id="tq" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Quiz</button><button id="tt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tasks</button><button id="tm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M7 6V4M12 6V4M17 6V4M2 11h20"/></svg>Motivation</button></nav>
 <div id="pdfview" hidden>
   <div class="pdftop"><button type="button" id="pdfclose">Close</button><div id="pdfptitle">PDF</div><div id="pdfpg"></div></div>
   <div class="pdftools"><button type="button" id="pdfzm" aria-label="Zoom out">−</button><button type="button" id="pdfzfit">Fit width</button><button type="button" id="pdfzp" aria-label="Zoom in">+</button><a class="pdfdla" id="pdfvdl" download>Download</a></div>
@@ -151,8 +177,8 @@ body.pdf-open nav.tabs{display:none!important}
   <div id="pdferr"></div>
   <div id="pdfstage"><div id="pdfzoom"><div id="pdfpages"></div></div></div>
 </div>
-<script src="logic.js?v=20261117b"></script>
+<script src="logic.js?v=20261117c"></script>
 <script src="config.js?v=20261105w"></script>
 <script src="data.js?v=20261110a"></script>
-<script src="app.js?v=20261117b"></script>
+<script src="app.js?v=20261117c"></script>
 </body></html>

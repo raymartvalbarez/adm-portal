@@ -28,9 +28,16 @@ if(typeof clearLegacyQuizLocks==="function")try{clearLegacyQuizLocks()}catch(_){
 
 // ---------- tabs ----------
 const SV=(typeof resolvePortalView==="function")?resolvePortalView(location.search,location.hash,navigator.userAgent):"";
-function applySingleView(){if(!SV)return;const title=(typeof portalViewTitle==="function"&&portalViewTitle(SV))||({quiz:"Quiz",tasks:"Tasks",games:"Games",handouts:"Handouts"}[SV]||"ADM");const bar=$("svbar"),el=$("svtitle");if(el)el.textContent=title;if(bar)bar.hidden=false;document.title=title+" — SHS ADM Portal · Bago NHS"}
-function tab(w){if(SV==="games"){$("quiz").style.display="none";$("tasks").style.display="none";return}if(SV==="quiz")w="quiz";if(SV==="tasks"||SV==="handouts")w="tasks";$("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("sq").className=$("tq").className;$("st2").className=$("tt").className;$("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";if(!SV){try{location.hash=w}catch(e){}}}
-$("tq").onclick=()=>CFG&&!SV&&tab("quiz");$("tt").onclick=()=>CFG&&!SV&&tab("tasks");$("sq").onclick=$("tq").onclick;$("st2").onclick=$("tt").onclick;
+function applySingleView(){if(!SV)return;const title=(typeof portalViewTitle==="function"&&portalViewTitle(SV))||({quiz:"Quiz",tasks:"Tasks",games:"Games",handouts:"Handouts",motivation:"Motivation"}[SV]||"ADM");const bar=$("svbar"),el=$("svtitle");if(el)el.textContent=title;if(bar)bar.hidden=false;document.title=title+" — SHS ADM Portal · Bago NHS"}
+function tab(w){if(SV==="games"){$("quiz").style.display="none";$("tasks").style.display="none";if($("motivation"))$("motivation").style.display="none";return}if(SV==="quiz")w="quiz";if(SV==="tasks"||SV==="handouts")w="tasks";if(SV==="motivation")w="motivation";
+ $("tq").className=w==="quiz"?"on":"";$("tt").className=w==="tasks"?"on":"";$("tm")&&($("tm").className=w==="motivation"?"on":"");
+ $("sq").className=$("tq").className;$("st2").className=$("tt").className;$("sm")&&($("sm").className=$("tm")?$("tm").className:"");
+ $("quiz").style.display=w==="quiz"?"":"none";$("tasks").style.display=w==="tasks"?"":"none";if($("motivation"))$("motivation").style.display=w==="motivation"?"":"none";if($("games"))$("games").style.display=w==="motivation"?"none":"";
+ if(w==="motivation"){if($("notopen"))$("notopen").style.display="none";if($("loading")&&$("loading").style.display!=="none")$("loading").style.display="none";loadMotivation()}
+ else if(!CFG&&$("notopen")){$("quiz").style.display="none";$("tasks").style.display="none";$("notopen").style.display="block"}
+ if(!SV){try{location.hash=w}catch(e){}}}
+$("tq").onclick=()=>CFG&&!SV&&tab("quiz");$("tt").onclick=()=>CFG&&!SV&&tab("tasks");$("tm")&&($("tm").onclick=()=>!SV&&tab("motivation"));
+$("sq").onclick=$("tq").onclick;$("st2").onclick=$("tt").onclick;$("sm")&&($("sm").onclick=()=>!SV&&tab("motivation"));
 function notOpen(){$("loading").style.display="none";$("notopen").style.display="block"}
 function iabErr(el,text){if(!el)return;if(text!=null)el.textContent=text;if(typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(el)}
 if(typeof fillInAppChromeBar==="function"&&$("iabbar"))try{fillInAppChromeBar($("iabbar"),location.href,navigator.userAgent)}catch(_){}
@@ -341,8 +348,55 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  catch(e){iabErr(er,NETERR)}
  bt.disabled=false;bt.textContent="Submit task"}
 
+
+// ---------- MOTIVATION ----------
+const EP_MANIFEST="videos/episodes.json?v=20261117c";
+let EPISODES=[],EPSEL=null,EPQ="sd",EPWAIT=null;
+function epWatched(n){const k=typeof episodeWatchKey==="function"?episodeWatchKey(n):"";return !!(k&&store(k))}
+function markWatched(n){const k=typeof episodeWatchKey==="function"?episodeWatchKey(n):"";if(k)store(k,1);const b=document.querySelector('.epitem[data-ep="'+n+'"] .epw');if(b)b.hidden=false}
+function epSrc(ep,q){return typeof episodeSources==="function"?episodeSources(ep,q):{primary:ep&&ep.file||"",fallback:ep&&ep.fileHd||""}}
+function loadMotivation(){const box=$("epbox");if(!box)return;if(EPISODES.length){renderMotivation();return}
+ fetch(EP_MANIFEST,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{
+  EPISODES=typeof parseEpisodeManifest==="function"?parseEpisodeManifest(j):[];renderMotivation()
+ }).catch(()=>{if(!box.querySelector("#epempty"))box.innerHTML='<div class="closed" id="epempty">Episode 1 coming soon</div>'} )}
+function renderMotivation(){const box=$("epbox");if(!box)return;
+ const pub=typeof publishedEpisodes==="function"?publishedEpisodes(EPISODES):EPISODES.filter(e=>e&&e.published);
+ if(!pub.length){box.innerHTML='<div class="closed" id="epempty">Episode 1 coming soon</div>';return}
+ if(!EPSEL||!pub.some(e=>e.ep===EPSEL.ep))EPSEL=(typeof featuredEpisode==="function"?featuredEpisode(pub):pub[pub.length-1]);
+ box.innerHTML=episodePlayerHtml(EPSEL)+'<h2 class="sec">Episodes</h2><div class="eplist">'+pub.map(episodeListHtml).join("")+'</div>';
+ bindEpisodePlayer(EPSEL);box.querySelectorAll(".epitem").forEach(b=>b.onclick=()=>{const ep=pub.find(x=>String(x.ep)===b.getAttribute("data-ep"));if(!ep)return;EPSEL=ep;renderMotivation();window.scrollTo(0,0)})}
+function episodeListHtml(e){const on=EPSEL&&EPSEL.ep===e.ep,watched=epWatched(e.ep);return '<button type="button" class="epitem'+(on?" on":"")+'" data-ep="'+e.ep+'"><span class="epl">Episode '+e.ep+'</span>'+(watched?'<span class="epw">✓ Watched</span>':"<span class=\"epw\" hidden>✓ Watched</span>")+'<div>'+esc(e.title)+'</div></button>'}
+function episodePlayerHtml(ep){const src=epSrc(ep,EPQ),poster=ep.poster||"",hd=!!ep.fileHd,when=ep.date?( /^\d{4}-\d{2}-\d{2}$/.test(ep.date)&&typeof dlab==="function"?dlab(ep.date):esc(ep.date)):"";
+ return '<div class="card vcard"><div class="vwrap"><video id="epvid" controls playsinline webkit-playsinline x5-playsinline preload="metadata"'+(poster?' poster="'+esc(poster)+'"':"")+' controlslist="nodownload">'+
+ (src.primary?'<source src="'+esc(src.primary)+'" type="video/mp4">':"")+(src.fallback?'<source src="'+esc(src.fallback)+'" type="video/mp4">':"")+
+ 'Sorry, this phone cannot play the video.</video><button type="button" class="vplay" id="epplay"><span class="vgo">▶</span><span>Tap to play</span></button></div>'+
+ '<div class="vmeta"><h3>Episode '+ep.ep+(ep.title?": "+esc(ep.title):"")+'</h3>'+(ep.caption?'<p class="note" style="text-align:left;margin:0">'+esc(ep.caption)+'</p>':"")+(when?'<p class="note" style="text-align:left;margin:6px 0 0">'+when+'</p>':"")+'</div>'+
+ '<div class="vbar">'+(hd?'<button type="button" class="vhd'+(EPQ==="hd"?" on":"")+'" id="ephd" aria-pressed="'+(EPQ==="hd"?"true":"false")+'">'+(EPQ==="hd"?"HD on":"HD")+'</button>':"")+
+ (src.primary?'<a class="vdl" id="epdl" href="'+esc(src.primary)+'" download>Download episode</a>':"")+'</div>'+
+ '<div class="vfail" id="epfail" hidden>This video could not play here. Download it, or open this page in Chrome.</div></div>'}
+function bindEpisodePlayer(ep){const v=$("epvid"),play=$("epplay"),fail=$("epfail"),hd=$("ephd"),dl=$("epdl");if(!v)return;try{v.setAttribute("playsinline","");v.setAttribute("webkit-playsinline","");v.playsInline=true;v.autoplay=false}catch(_){}
+ const src=epSrc(ep,EPQ),showFail=()=>{if(fail){fail.hidden=false;if(typeof attachInAppChromeHelp==="function")attachInAppChromeHelp(fail,location.href,navigator.userAgent,"To watch this episode, open this page in Chrome")}},hideFail=()=>{if(fail)fail.hidden=true;if(EPWAIT){clearTimeout(EPWAIT);EPWAIT=null}},armWait=()=>{if(EPWAIT)clearTimeout(EPWAIT);EPWAIT=setTimeout(showFail,10000)};
+ if(play)play.onclick=()=>{const p=v.play();if(p&&p.catch)p.catch(()=>showFail());else if(v.error)showFail()};
+ v.addEventListener("play",()=>{if(play)play.classList.add("off");hideFail()});
+ v.addEventListener("playing",()=>{if(play)play.classList.add("off");hideFail()});
+ v.addEventListener("pause",()=>{if(v.ended&&play){play.classList.remove("off");play.querySelector("span:last-child")&& (play.querySelector("span:last-child").textContent="Watch again")}});
+ v.addEventListener("ended",()=>{markWatched(ep.ep);if(play){play.classList.remove("off");const lab=play.querySelector("span:last-child");if(lab)lab.textContent="Watch again"}});
+ v.addEventListener("error",showFail);
+ v.addEventListener("waiting",armWait);
+ v.addEventListener("stalled",armWait);
+ v.addEventListener("timeupdate",()=>{if(v.currentTime>=15)markWatched(ep.ep)});
+ if(hd)hd.onclick=()=>{const t=v.currentTime||0,was=!v.paused;EPQ=EPQ==="hd"?"sd":"hd";const next=epSrc(ep,EPQ);if(!next.primary)return;
+  hideFail();v.pause();v.removeAttribute("src");while(v.firstChild)v.removeChild(v.firstChild);
+  const s1=document.createElement("source");s1.src=next.primary;s1.type="video/mp4";v.appendChild(s1);
+  if(next.fallback){const s2=document.createElement("source");s2.src=next.fallback;s2.type="video/mp4";v.appendChild(s2)}
+  if(dl){dl.href=next.primary}hd.className="vhd"+(EPQ==="hd"?" on":"");hd.setAttribute("aria-pressed",EPQ==="hd"?"true":"false");hd.textContent=EPQ==="hd"?"HD on":"HD";
+  v.load();const resume=()=>{try{v.currentTime=t}catch(e){}if(was){const p=v.play();if(p&&p.catch)p.catch(()=>{}) }v.removeEventListener("loadedmetadata",resume)};v.addEventListener("loadedmetadata",resume)}}
+
 // ---------- start ----------
-if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;try{(CFG.tasks||[]).forEach(t=>{if(t&&t.id)localStorage.removeItem("adm_task_"+t.id)})}catch(_){}setupNames();$("loading").style.display="none";fillDates();fillTDates();hcd();load("");const start=SV==="tasks"||SV==="handouts"?"tasks":(SV==="games"?"quiz":(location.hash==="#tasks"?"tasks":"quiz"));tab(start);applySingleView()}).catch(e=>{applySingleView();notOpen()});
+const startView=()=>SV==="tasks"||SV==="handouts"?"tasks":(SV==="motivation"?"motivation":(SV==="games"?"quiz":(location.hash==="#tasks"?"tasks":(location.hash==="#motivation"?"motivation":"quiz"))));
+loadMotivation();
+if(!API_URL){notOpen();if(startView()==="motivation")tab("motivation");applySingleView()}
+else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;try{(CFG.tasks||[]).forEach(t=>{if(t&&t.id)localStorage.removeItem("adm_task_"+t.id)})}catch(_){}setupNames();$("loading").style.display="none";fillDates();fillTDates();hcd();load("");tab(startView());applySingleView()}).catch(e=>{applySingleView();notOpen();if(startView()==="motivation")tab("motivation")});
 
 function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if(!LS.length)return;
  [["gr","sec","nm"],["tgr","tsec","tnm"]].forEach(([g,s,n])=>{const gi=$(g),si=$(s),ni=$(n),nl=ni.previousElementSibling,sl=si.previousElementSibling;

@@ -153,9 +153,9 @@ test("games are closed and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261117b/);
+  assert.match(html, /logic\.js\?v=20261117c/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261117b/);
+  assert.match(html, /app\.js\?v=20261117c/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -214,6 +214,8 @@ test("single-section view is opt-in and hash alone does not change the browser p
   assert.equal(logic.resolvePortalView("?view=tasks", "#quiz", ""), "tasks");
   assert.equal(logic.resolvePortalView("?view=games", "", ""), "games");
   assert.equal(logic.resolvePortalView("?view=handouts", "", ""), "handouts");
+  assert.equal(logic.resolvePortalView("?view=motivation", "", ""), "motivation");
+  assert.equal(logic.resolvePortalView("?view=videos", "", ""), "motivation");
   assert.equal(logic.resolvePortalView("?view=task", "", ""), "tasks");
   assert.equal(logic.resolvePortalView("", "#view=quiz", ""), "quiz");
   assert.equal(logic.resolvePortalView("", "#view=games", "Mozilla/5.0"), "games");
@@ -221,9 +223,11 @@ test("single-section view is opt-in and hash alone does not change the browser p
   assert.equal(logic.resolvePortalView("", "#tasks", ua), "tasks");
   assert.equal(logic.resolvePortalView("", "#games", ua), "games");
   assert.equal(logic.resolvePortalView("", "#handouts", ua), "handouts");
+  assert.equal(logic.resolvePortalView("", "#motivation", ua), "motivation");
   assert.equal(logic.resolvePortalView("", "#quiz", "BagoSHSADMStudent/1.5.0"), "quiz");
   assert.equal(logic.resolvePortalView("?view=bogus", "#quiz", ""), "");
   assert.equal(logic.portalViewTitle("games"), "Games");
+  assert.equal(logic.portalViewTitle("motivation"), "Motivation");
   assert.equal(logic.isAdmAppUserAgent(ua), true);
   assert.equal(logic.isAdmAppUserAgent("Mozilla/5.0 (Linux; Android 14) Chrome/141.0.0.0 Mobile Safari/537.36"), false);
 });
@@ -252,8 +256,8 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261117b/);
-  assert.match(html, /logic\.js\?v=20261117b/);
+  assert.match(html, /app\.js\?v=20261117c/);
+  assert.match(html, /logic\.js\?v=20261117c/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -420,10 +424,10 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /id="iabbar"/);
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
-  assert.match(teacher, /logic\.js\?v=20261117b/);
+  assert.match(teacher, /logic\.js\?v=20261117c/);
   assert.match(teacher, /teacher\.js\?v=20261112c/);
-  assert.match(index, /logic\.js\?v=20261117b/);
-  assert.match(index, /app\.js\?v=20261117b/);
+  assert.match(index, /logic\.js\?v=20261117c/);
+  assert.match(index, /app\.js\?v=20261117c/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -453,8 +457,8 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261117b/);
-  assert.match(html, /logic\.js\?v=20261117b/);
+  assert.match(html, /app\.js\?v=20261117c/);
+  assert.match(html, /logic\.js\?v=20261117c/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
   assert.match(app, /getDocument\(\{data:/);
@@ -506,8 +510,8 @@ test("quiz score lock is set only after a confirmed save and failed saves can be
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const logicJs = fs.readFileSync(path.join(root, "logic.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261117b/);
-  assert.match(html, /logic\.js\?v=20261117b/);
+  assert.match(html, /app\.js\?v=20261117c/);
+  assert.match(html, /logic\.js\?v=20261117c/);
   assert.match(logicJs, /adm_quiz_pending_/);
   assert.match(app, /function writePending/);
   assert.match(app, /function readPending/);
@@ -575,4 +579,73 @@ test("task cards ignore leftover phone-wide locks and only lock the selected nam
   assert.doesNotMatch(app, /store\("adm_task_"\+t\.id\)\|\|store\(tkey/);
   assert.match(app, /function tkey\(id\)\{return"adm_task_"\+norm\(\$\("tnm"\)\.value\)\+"_"\+id\}/);
   assert.match(app, /action=checkTask&name=/);
+});
+
+
+test("motivation manifest parsing keeps only published clips and lists them in order", () => {
+  assert.deepEqual(logic.parseEpisodeManifest('{"episodes":[]}'), []);
+  assert.deepEqual(logic.parseEpisodeManifest("[]"), []);
+  assert.deepEqual(logic.parseEpisodeManifest("not-json"), []);
+  assert.equal(logic.featuredEpisode([]), null);
+  const parsed = logic.parseEpisodeManifest({
+    episodes: [
+      { ep: 2, title: "Second", caption: "Keep going", file: "videos/ep02-480.mp4", fileHd: "videos/ep02-720.mp4", poster: "videos/ep02.jpg", date: "2026-11-18", published: true },
+      { ep: 1, title: "First", caption: "Start here", file: "videos/ep01-480.mp4", fileHd: "videos/ep01-720.mp4", poster: "videos/ep01.jpg", date: "2026-11-17", published: true },
+      { ep: 3, title: "Draft", file: "videos/ep03-480.mp4", published: false },
+      { ep: 4, title: "Missing file", published: true },
+      { ep: 5, title: "Unsafe", file: "../secret.mp4", published: true },
+      { ep: 6, title: "Remote", file: "https://example.com/x.mp4", published: true }
+    ]
+  });
+  const pub = logic.publishedEpisodes(parsed);
+  assert.equal(pub.length, 2);
+  assert.equal(pub[0].ep, 1);
+  assert.equal(pub[1].ep, 2);
+  assert.equal(logic.featuredEpisode(parsed).ep, 2);
+  assert.equal(logic.featuredEpisode(parsed).title, "Second");
+  assert.deepEqual(logic.episodeSources(pub[0], "sd"), { primary: "videos/ep01-480.mp4", fallback: "videos/ep01-720.mp4" });
+  assert.deepEqual(logic.episodeSources(pub[0], "hd"), { primary: "videos/ep01-720.mp4", fallback: "videos/ep01-480.mp4" });
+  assert.equal(logic.safeMediaPath("videos/ep01-480.mp4"), "videos/ep01-480.mp4");
+  assert.equal(logic.safeMediaPath("../secret.mp4"), "");
+  assert.equal(logic.safeMediaPath("https://example.com/x.mp4"), "");
+  assert.equal(logic.episodeWatchKey(2), "adm_ep_watched_2");
+});
+
+test("motivation tab shows an empty coming-soon state and a phone-friendly player", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const script = fs.readFileSync(path.join(root, "scripts/add-episode.sh"), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "videos/episodes.json"), "utf8"));
+  assert.deepEqual(manifest, { episodes: [] });
+  assert.deepEqual(logic.parseEpisodeManifest(manifest), []);
+  assert.equal(logic.publishedEpisodes(logic.parseEpisodeManifest(manifest)).length, 0);
+  assert.match(html, /id="motivation"/);
+  assert.match(html, /id="tm"/);
+  assert.match(html, /Episode 1 coming soon/);
+  assert.match(html, /app\.js\?v=20261117c/);
+  assert.match(html, /logic\.js\?v=20261117c/);
+  assert.match(html, /html\.sv-motivation #motivation/);
+  assert.match(app, /function loadMotivation/);
+  assert.match(app, /Episode 1 coming soon/);
+  assert.match(app, /playsinline/);
+  assert.match(app, /webkit-playsinline/);
+  assert.match(app, /preload="metadata"/);
+  assert.match(app, /Tap to play/);
+  assert.match(app, /Download episode/);
+  assert.match(app, /open this page in Chrome/);
+  assert.match(fs.readFileSync(path.join(root, "logic.js"), "utf8"), /Open in Chrome/);
+  assert.match(app, /id="ephd"/);
+  assert.match(app, /EPQ="sd"/);
+  assert.doesNotMatch(app, /id="epvid"[^>]*\bautoplay\b/);
+  assert.doesNotMatch(app, /id="epvid"[^>]*\bmuted\b/);
+  assert.match(script, /profile:v "\$profile"/);
+  assert.match(script, /854 baseline/);
+  assert.match(script, /1280 main/);
+  assert.match(script, /pix_fmt yuv420p/);
+  assert.match(script, /movflags \+faststart/);
+  assert.match(script, /-c:a aac/);
+  assert.match(script, /480/);
+  assert.match(script, /720/);
+  const videoFiles = fs.readdirSync(path.join(root, "videos")).filter((f) => /\.(mp4|m4v)$/i.test(f));
+  assert.deepEqual(videoFiles, []);
 });

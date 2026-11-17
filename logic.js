@@ -116,7 +116,7 @@ function answerKeyHash(sid, index, choice) {
 }
 
 
-var PORTAL_VIEWS = { quiz: "Quiz", tasks: "Tasks", games: "Games", handouts: "Handouts" };
+var PORTAL_VIEWS = { quiz: "Quiz", tasks: "Tasks", games: "Games", handouts: "Handouts", motivation: "Motivation" };
 var ADM_APP_UA = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
 
 function canonView(v) {
@@ -124,6 +124,7 @@ function canonView(v) {
   if (v === "task") v = "tasks";
   if (v === "game") v = "games";
   if (v === "handout") v = "handouts";
+  if (v === "video" || v === "videos" || v === "clips" || v === "motivate") v = "motivation";
   return PORTAL_VIEWS[v] ? v : "";
 }
 
@@ -324,10 +325,11 @@ function fillInAppChromeBar(el, pageUrl, ua) {
   return info;
 }
 
-function attachInAppChromeHelp(el, pageUrl, ua) {
+function attachInAppChromeHelp(el, pageUrl, ua, title) {
   if (typeof navigator !== "undefined") ua = ua || navigator.userAgent;
   if (typeof location !== "undefined") pageUrl = pageUrl || location.href;
   var info = inAppOpenInChrome(pageUrl, ua);
+  if (title) info.title = title;
   if (!el || !info.show) return info;
   var box = el.querySelector ? el.querySelector(".iabhelp") : null;
   if (!box) {
@@ -465,6 +467,77 @@ function quizPendingPayload(raw) {
   };
 }
 
+
+function safeMediaPath(p) {
+  var s = String(p || "").trim().replace(/\\/g, "/");
+  if (!s || s.indexOf("..") !== -1 || s.charAt(0) === "/" || s.indexOf(":") !== -1) return "";
+  if (!/^videos\/[A-Za-z0-9][A-Za-z0-9._/-]*\.(mp4|m4v|jpg|jpeg|png|webp)$/i.test(s)) return "";
+  return s;
+}
+
+function episodeWatchKey(ep) {
+  var n = typeof ep === "object" ? Number(ep && ep.ep) : Number(ep);
+  if (!isFinite(n) || n < 1) return "";
+  return "adm_ep_watched_" + Math.floor(n);
+}
+
+function normalizeEpisode(e) {
+  if (!e || typeof e !== "object") return null;
+  var n = Number(e.ep);
+  if (!isFinite(n) || n < 1) return null;
+  var file = safeMediaPath(e.file || e.file480 || e.sd || "");
+  var fileHd = safeMediaPath(e.fileHd || e.file720 || e.hd || "");
+  if (!file && fileHd) file = fileHd;
+  if (!file || !/\.(mp4|m4v)$/i.test(file)) return null;
+  if (fileHd && !/\.(mp4|m4v)$/i.test(fileHd)) fileHd = "";
+  if (fileHd === file) fileHd = "";
+  var poster = safeMediaPath(e.poster || "");
+  if (poster && !/\.(jpg|jpeg|png|webp)$/i.test(poster)) poster = "";
+  var pub = e.published === true || e.published === "true" || e.published === "Y" || e.published === 1;
+  var title = String(e.title || "").trim();
+  return {
+    ep: Math.floor(n),
+    title: title || ("Episode " + Math.floor(n)),
+    caption: String(e.caption || "").trim(),
+    file: file,
+    fileHd: fileHd,
+    poster: poster,
+    date: String(e.date || "").trim(),
+    published: !!pub
+  };
+}
+
+function parseEpisodeManifest(raw) {
+  var data = raw;
+  if (typeof raw === "string") {
+    try { data = JSON.parse(raw); } catch (err) { return []; }
+  }
+  var list = Array.isArray(data) ? data : (data && Array.isArray(data.episodes) ? data.episodes : []);
+  var out = [], i, ep;
+  for (i = 0; i < list.length; i++) {
+    ep = normalizeEpisode(list[i]);
+    if (ep) out.push(ep);
+  }
+  return out;
+}
+
+function publishedEpisodes(list) {
+  return (list || []).filter(function (e) { return e && e.published; }).slice().sort(function (a, b) { return a.ep - b.ep; });
+}
+
+function featuredEpisode(list) {
+  var pub = publishedEpisodes(list);
+  return pub.length ? pub[pub.length - 1] : null;
+}
+
+function episodeSources(ep, quality) {
+  if (!ep) return { primary: "", fallback: "" };
+  var sd = ep.file || "";
+  var hd = ep.fileHd || "";
+  if (quality === "hd" && hd) return { primary: hd, fallback: sd && sd !== hd ? sd : "" };
+  return { primary: sd, fallback: hd && hd !== sd ? hd : "" };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -508,6 +581,13 @@ if (typeof module !== "undefined" && module.exports) {
     clearLegacyQuizLocks: clearLegacyQuizLocks,
     quizListStatus: quizListStatus,
     quizSaveAccepted: quizSaveAccepted,
-    quizPendingPayload: quizPendingPayload
+    quizPendingPayload: quizPendingPayload,
+    safeMediaPath: safeMediaPath,
+    episodeWatchKey: episodeWatchKey,
+    normalizeEpisode: normalizeEpisode,
+    parseEpisodeManifest: parseEpisodeManifest,
+    publishedEpisodes: publishedEpisodes,
+    featuredEpisode: featuredEpisode,
+    episodeSources: episodeSources
   };
 }
