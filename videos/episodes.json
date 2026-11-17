@@ -1,3 +1,14 @@
 {
-  "episodes": []
+  "episodes": [
+    {
+      "ep": 1,
+      "title": "Episode 1: Intro of the Dragon",
+      "caption": "",
+      "file": "videos/ep01-480.mp4",
+      "fileHd": "videos/ep01-720.mp4",
+      "poster": "videos/ep01.jpg",
+      "date": "2026-11-17",
+      "published": true
+    }
+  ]
 }

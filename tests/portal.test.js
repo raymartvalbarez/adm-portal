@@ -611,14 +611,26 @@ test("motivation manifest parsing keeps only published clips and lists them in o
   assert.equal(logic.episodeWatchKey(2), "adm_ep_watched_2");
 });
 
-test("motivation tab shows an empty coming-soon state and a phone-friendly player", () => {
+test("motivation tab keeps a coming-soon fallback and a phone-friendly player", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const script = fs.readFileSync(path.join(root, "scripts/add-episode.sh"), "utf8");
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "videos/episodes.json"), "utf8"));
-  assert.deepEqual(manifest, { episodes: [] });
-  assert.deepEqual(logic.parseEpisodeManifest(manifest), []);
-  assert.equal(logic.publishedEpisodes(logic.parseEpisodeManifest(manifest)).length, 0);
+  assert.ok(Array.isArray(manifest.episodes));
+  const pub = logic.publishedEpisodes(logic.parseEpisodeManifest(manifest));
+  if (pub.length === 0) {
+    assert.deepEqual(manifest, { episodes: [] });
+    const videoFiles = fs.readdirSync(path.join(root, "videos")).filter((f) => /\.(mp4|m4v)$/i.test(f));
+    assert.deepEqual(videoFiles, []);
+  } else {
+    pub.forEach((ep) => {
+      assert.ok(Number(ep.ep) >= 1);
+      assert.ok(String(ep.title || "").trim());
+      assert.ok(fs.existsSync(path.join(root, ep.file)));
+      if (ep.fileHd) assert.ok(fs.existsSync(path.join(root, ep.fileHd)));
+      if (ep.poster) assert.ok(fs.existsSync(path.join(root, ep.poster)));
+    });
+  }
   assert.match(html, /id="motivation"/);
   assert.match(html, /id="tm"/);
   assert.match(html, /Episode 1 coming soon/);
@@ -646,8 +658,6 @@ test("motivation tab shows an empty coming-soon state and a phone-friendly playe
   assert.match(script, /-c:a aac/);
   assert.match(script, /480/);
   assert.match(script, /720/);
-  const videoFiles = fs.readdirSync(path.join(root, "videos")).filter((f) => /\.(mp4|m4v)$/i.test(f));
-  assert.deepEqual(videoFiles, []);
 });
 
 
