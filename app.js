@@ -24,6 +24,7 @@ async function post(o,opts){opts=opts||{};const max=opts.tries||8,body=JSON.stri
  if(lastNet)throw lastNet;return{ok:false,error:BUSY}}
 const busyMsg=(bt)=>(n,m)=>{bt.textContent="Server busy, retrying automatically ("+n+"/"+m+")… don't close this page"};
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k)==="1";localStorage.setItem(k,"1")}catch(e){return false}}
+if(typeof clearLegacyQuizLocks==="function")try{clearLegacyQuizLocks()}catch(_){}
 
 // ---------- tabs ----------
 const SV=(typeof resolvePortalView==="function")?resolvePortalView(location.search,location.hash,navigator.userAgent):"";
@@ -39,23 +40,39 @@ function sched(id){const n=norm(SUBJ[id].n);return(CFG.quizzes||[]).find(q=>norm
 function quizOpen(id){const s=sched(id);return !!(s&&s.open&&(!s.deadline||Date.now()<s.deadline))}
 function dlab(d){return new Date(d+"T00:00:00+08:00").toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric",timeZone:"Asia/Manila"})}
 function sname(k){return SUBJ[k].n.replace(/\s*—\s*Quiz \d+.*$/,"")}
-function qstat(k){if(store("adm_quiz_"+k))return"Already submitted";const nm=$("nm")&&$("nm").value.trim();if(nm&&readPending(k,nm))return"Save pending";return quizOpen(k)?"Open":"Closed"}
+function qname(){return($("nm")&&$("nm").value.trim())||""}
+function qlockKey(sid,name){return typeof quizLockKey==="function"?quizLockKey(sid,name):""}
+function hasQlock(sid,name){const k=qlockKey(sid,name);return !!(k&&store(k))}
+function setQlock(sid,name){const k=qlockKey(sid,name);if(k)store(k,1)}
+function qstat(k){const nm=qname();if(typeof quizListStatus==="function")return quizListStatus(quizOpen(k),nm,hasQlock(k,nm),!!(nm&&readPending(k,nm)));if(nm&&hasQlock(k,nm))return"Already submitted";if(nm&&readPending(k,nm))return"Save pending";return quizOpen(k)?"Open":"Closed"}
 function fillDates(){const ds=[...new Set(Object.values(SUBJ).map(s=>s.d))].sort().reverse(),op=ds.filter(d=>Object.keys(SUBJ).some(k=>SUBJ[k].d===d&&quizOpen(k)));
  $("qd").innerHTML=ds.map(d=>'<option value="'+d+'">'+dlab(d)+(op.includes(d)?" · Open":" · Closed")+'</option>').join("");$("qd").value=op[0]||ds[0]||""}
-$("qd").onchange=()=>$("gr").onchange();
-$("gr").onchange=()=>{const g=$("gr").value,dt=$("qd").value,ks=Object.keys(SUBJ).filter(k=>SUBJ[k].g===g&&SUBJ[k].d===dt),nm=$("nm")&&$("nm").value.trim();
- $("sj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":ks.length?"— Choose subject —":"No quiz on this date")+'</option>'+ks.map(k=>{const st=qstat(k),dis=st==="Closed"?" disabled":"";return'<option value="'+k+'"'+dis+'>'+esc(sname(k))+' — '+(st==="Open"?"🟢 Open":st==="Closed"?"🔒 Closed":st==="Save pending"?"⏳ Save not finished":"✅ Already submitted")+'</option>'}).join("");$("sj").disabled=!ks.length;load("")};
+function fillSubjects(keep){const g=$("gr").value,dt=$("qd").value,ks=Object.keys(SUBJ).filter(k=>SUBJ[k].g===g&&SUBJ[k].d===dt),prev=keep?$("sj").value:"";
+ $("sj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":ks.length?"— Choose subject —":"No quiz on this date")+'</option>'+ks.map(k=>{const st=qstat(k),dis=st==="Closed"?" disabled":"";return'<option value="'+k+'"'+dis+'>'+esc(sname(k))+' — '+(st==="Open"?"🟢 Open":st==="Closed"?"🔒 Closed":st==="Save pending"?"⏳ Save not finished":"✅ Already submitted")+'</option>'}).join("");$("sj").disabled=!ks.length;
+ if(keep&&prev&&[...$("sj").options].some(o=>o.value===prev))$("sj").value=prev;else $("sj").value="";
+ load(keep?$("sj").value:"")}
+$("qd").onchange=()=>fillSubjects(false);
+$("gr").onchange=()=>fillSubjects(false);
 $("sj").onchange=()=>load($("sj").value);
+$("nm")&&$("nm").addEventListener("change",()=>fillSubjects(true));
 function readPending(sid,name){const k=typeof quizPendingKey==="function"?quizPendingKey(sid,name):"";if(!k)return null;try{return quizPendingPayload(localStorage.getItem(k))}catch(e){return null}}
 function writePending(p){const rec=typeof quizPendingPayload==="function"?quizPendingPayload(p):null;if(!rec)return false;const k=quizPendingKey(rec.sid,rec.name);if(!k)return false;try{localStorage.setItem(k,JSON.stringify(rec));return true}catch(e){return false}}
 function clearPending(sid,name){const k=typeof quizPendingKey==="function"?quizPendingKey(sid,name):"";if(!k)return;try{localStorage.removeItem(k)}catch(e){}}
 function load(id){SID=id;ITEMS=id?SUBJ[id].items:[];$("result").innerHTML="";$("msg").textContent="";$("bar").style.display=id?"block":"none";$("submit").style.display="block";$("qs").style.display="";$("gr").disabled=$("sj").disabled=false;
  $("info").textContent=id?ITEMS.length+" items · "+new Set(ITEMS.map(x=>x.t)).size+" topics":"Choose your grade level and subject to start.";
- if(id&&store("adm_quiz_"+id)){lockOut();return}
- const nm=$("nm")&&$("nm").value.trim(),pend=id&&nm&&readPending(id,nm);
+ const nm=qname();
+ if(id&&nm&&hasQlock(id,nm)){lockOut();return}
+ const pend=id&&nm&&readPending(id,nm);
  if(pend&&(!SUBJ[id]||pend.subject===SUBJ[id].n)){showQuizResult(pend,quizRetryStatus("Score not saved yet. Tap Retry saving. Your score is already graded — you don't need to answer again."));return}
  let h="",cur="";ITEMS.forEach((it,i)=>{if(it.t!==cur){cur=it.t;h+='<h2 class="sec">'+esc(cur)+'</h2>'}
- h+='<div class="card" id="c'+i+'"><p class="q"><span class="qn">'+(i+1)+'</span>'+esc(it.q)+'</p>'+it.c.map((c,j)=>'<label class="opt"><input type="radio" name="q'+i+'" value="'+j+'"><span class="lt">'+L[j]+'</span><span>'+esc(c)+'</span></label>').join("")+'</div>'});$("qs").innerHTML=h;prog();tick()}
+ h+='<div class="card" id="c'+i+'"><p class="q"><span class="qn">'+(i+1)+'</span>'+esc(it.q)+'</p>'+it.c.map((c,j)=>'<label class="opt"><input type="radio" name="q'+i+'" value="'+j+'"><span class="lt">'+L[j]+'</span><span>'+esc(c)+'</span></label>').join("")+'</div>'});$("qs").innerHTML=h;prog();tick();
+ if(id&&nm)confirmQuizOnServer(id,nm)}
+function confirmQuizOnServer(id,name){const sub=SUBJ[id]&&SUBJ[id].n;if(!id||!name||!sub)return;
+ get("action=check&name="+encodeURIComponent(name)+"&subject="+encodeURIComponent(sub)).then(j=>!!(j&&j.exists)).catch(()=>false).then(exists=>{
+  if(!exists||qname()!==name||SID!==id)return;
+  setQlock(id,name);clearPending(id,name);
+  const opt=[...$("sj").options].find(o=>o.value===id);if(opt)opt.textContent=sname(id)+" — ✅ Already submitted";
+  lockOut()})}
 function prog(){const p=$("prog"),n=ITEMS.length;if(!SID||!n||!$("qs").innerHTML){p.style.display="none";return}p.style.display="block";
  const a=document.querySelectorAll("#qs input:checked").length;$("progt").textContent=a+" / "+n+" answered";$("progf").style.width=Math.round(a/n*100)+"%"}
 $("qs").addEventListener("change",e=>{const t=e.target;if(!t||t.type!=="radio")return;document.querySelectorAll('input[name="'+t.name+'"]').forEach(r=>r.parentNode.classList.toggle("sel",r.checked));const c=t.closest(".card");if(c)c.classList.add("done");prog()});
@@ -81,7 +98,7 @@ function sendQuizScore(p,fromRetry){const rec=quizPendingPayload(p);if(!rec)retu
  const body={type:"quiz",name:rec.name,grade:rec.grade,subject:rec.subject,section:rec.section,score:rec.score,total:rec.total,percent:rec.percent,topicBreakdown:rec.topicBreakdown,answers:rec.answers};
  post(body,{check:()=>get("action=check&name="+encodeURIComponent(rec.name)+"&subject="+encodeURIComponent(rec.subject)).then(j=>!!(j&&j.exists)).catch(()=>false),wait:(n,m)=>{const e=$("st");if(e)e.textContent="Server busy, saving again ("+n+"/"+m+")… don't close this page"}})
  .then(j=>handleQuizSave(rec,j)).catch(()=>handleQuizSave(rec,null))}
-function handleQuizSave(rec,j){if(typeof quizSaveAccepted==="function"?quizSaveAccepted(j):j&&(j.ok||j.dup||j.error==="already_submitted")){clearPending(rec.sid,rec.name);store("adm_quiz_"+rec.sid,1);showQuizResult(rec,'<p class="note" id="st"><b class="ok">✓ Score saved</b></p>',{saved:true});return}
+function handleQuizSave(rec,j){if(typeof quizSaveAccepted==="function"?quizSaveAccepted(j):j&&(j.ok||j.dup||j.error==="already_submitted")){clearPending(rec.sid,rec.name);setQlock(rec.sid,rec.name);showQuizResult(rec,'<p class="note" id="st"><b class="ok">✓ Score saved</b></p>',{saved:true});return}
  if(j&&j.closed){showQuizResult(rec,quizRetryStatus("Quiz closed. Score not recorded yet. Tap Retry saving if the quiz is open again."));return}
  showQuizResult(rec,quizRetryStatus("Couldn't save. Keep this page open and tap Retry saving. You can also screenshot this card and send it to your teacher."))}
 $("submit").onclick=()=>{const nm=$("nm").value.trim(),sc=$("sec").value.trim(),msg=$("msg"),bt=$("submit");
@@ -94,7 +111,7 @@ $("submit").onclick=()=>{const nm=$("nm").value.trim(),sc=$("sec").value.trim(),
  if(un&&!confirm(un+" item(s) unanswered. Submit anyway?"))return;
  msg.textContent="Checking…";bt.disabled=true;
  get("action=check&name="+encodeURIComponent(nm)+"&subject="+encodeURIComponent(sub)).then(j=>!!(j&&j.exists)).catch(()=>false).then(dup=>{bt.disabled=false;
- if(dup){store("adm_quiz_"+SID,1);clearPending(SID,nm);lockOut();return}msg.textContent="";finish(nm,sc,sub)})};
+ if(dup){setQlock(SID,nm);clearPending(SID,nm);lockOut();return}msg.textContent="";finish(nm,sc,sub)})};
 function finish(nm,sc,sub){let score=0,per={},ans="";
  ITEMS.forEach((it,i)=>{per[it.t]=per[it.t]||[0,0];per[it.t][1]++;const s=document.querySelector("input[name=q"+i+"]:checked"),v=s?+s.value:-1;ans+=v>=0?L[v]:"-";
   if(v>=0&&H("bnhs|"+SID+"|"+i+"|"+v+"|shs26")===it.k){score++;per[it.t][0]++}});
@@ -233,7 +250,7 @@ function showTasks(){const g=$("tgr").value,s=$("tsj").value,box=$("tlist"),note
  const ts=openTasks().filter(t=>(norm(t.grade)===norm(g)||norm(t.grade)==="all")&&t.subject===s);
  if(note)note.style.display=ts.length&&ts.every(t=>t.kind==="handout")?"none":"";
  if(!ts.length){TS=[];box.innerHTML='<div class="closed" style="font-size:1rem">No tasks for this subject right now.</div>';return}
- box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);const done=store("adm_task_"+t.id)||store(tkey(t.id));const pdf=taskPdfLinks(t),instr=pdf&&pdf.strip?stripTaskPdfUrl(t.instructions,pdf.strip):String(t.instructions||"");return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf,t)+
+ box.innerHTML=ts.map((t,i)=>{if(t.kind==="handout")return handoutCard(t);try{localStorage.removeItem("adm_task_"+t.id)}catch(_){}const nm=$("tnm")&&$("tnm").value.trim(),done=!!(nm&&store(tkey(t.id)));const pdf=taskPdfLinks(t),instr=pdf&&pdf.strip?stripTaskPdfUrl(t.instructions,pdf.strip):String(t.instructions||"");return'<div class="card task" id="tk'+i+'"><h3>'+esc(t.title)+'</h3>'+(t.deadline?'<div class="dl">Deadline: '+fmt(t.deadline)+' · '+left(t.deadline)+'</div>':'<div class="dl">No deadline</div>')+'<div class="ins">'+esc(instr)+'</div>'+taskPdfButtons(pdf,t)+
  (done?'<p class="ok"><b>✅ Submitted — You already submitted this. Only one submission is allowed.</b></p>':'<label class="f">📷 Photos of your work (1–5). Take a photo or choose from Gallery; you can add more one at a time.</label><input type="file" accept="image/*"'+MULTI+' data-i="'+i+'"><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button class="go" data-i="'+i+'">Submit task</button>')+'</div>'}).join("");
  box.querySelectorAll("input[type=file]").forEach(inp=>picker(inp.parentNode,inp));
  box.querySelectorAll("button.go[data-i]").forEach(b=>b.onclick=()=>sendTask(ts[+b.dataset.i],b.parentNode));bindTaskPdfButtons(box);TS=ts;taskStatus(ts)}
@@ -325,7 +342,7 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
  bt.disabled=false;bt.textContent="Submit task"}
 
 // ---------- start ----------
-if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;setupNames();$("loading").style.display="none";fillDates();fillTDates();hcd();load("");const start=SV==="tasks"||SV==="handouts"?"tasks":(SV==="games"?"quiz":(location.hash==="#tasks"?"tasks":"quiz"));tab(start);applySingleView()}).catch(e=>{applySingleView();notOpen()});
+if(!API_URL)notOpen();else get("action=config").then(j=>{if(!j||!j.ok)throw 0;CFG=j;try{(CFG.tasks||[]).forEach(t=>{if(t&&t.id)localStorage.removeItem("adm_task_"+t.id)})}catch(_){}setupNames();$("loading").style.display="none";fillDates();fillTDates();hcd();load("");const start=SV==="tasks"||SV==="handouts"?"tasks":(SV==="games"?"quiz":(location.hash==="#tasks"?"tasks":"quiz"));tab(start);applySingleView()}).catch(e=>{applySingleView();notOpen()});
 
 function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if(!LS.length)return;
  [["gr","sec","nm"],["tgr","tsec","tnm"]].forEach(([g,s,n])=>{const gi=$(g),si=$(s),ni=$(n),nl=ni.previousElementSibling,sl=si.previousElementSibling;
@@ -347,5 +364,5 @@ function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if
    ss.add(new Option(!gi.value?"— Choose grade level first —":secs.length?"— Choose section —":"— No section on the list —",""));
    secs.forEach(sec=>ss.add(new Option(sec,sec)));
    ss.value=secs.indexOf(prev)>=0?prev:(secs.length===1?secs[0]:"");fillN()};
-  const prev=gi.onchange;gi.onchange=function(ev){if(typeof prev==="function")prev.call(gi,ev);fillS()};
-  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);if(g==="gr")ns.addEventListener("change",()=>{if(SID)load(SID)});fillS()})};
+  const prev=gi.onchange;gi.onchange=function(ev){fillS();if(typeof prev==="function")prev.call(gi,ev)};
+  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);if(g==="gr"){ns.addEventListener("change",()=>fillSubjects(true));ss.addEventListener("change",()=>fillSubjects(true))}fillS()})};

@@ -153,9 +153,9 @@ test("games are closed and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261117a/);
+  assert.match(html, /logic\.js\?v=20261117b/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261117a/);
+  assert.match(html, /app\.js\?v=20261117b/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -252,8 +252,8 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261117a/);
-  assert.match(html, /logic\.js\?v=20261117a/);
+  assert.match(html, /app\.js\?v=20261117b/);
+  assert.match(html, /logic\.js\?v=20261117b/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -420,10 +420,10 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /id="iabbar"/);
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
-  assert.match(teacher, /logic\.js\?v=20261117a/);
+  assert.match(teacher, /logic\.js\?v=20261117b/);
   assert.match(teacher, /teacher\.js\?v=20261112c/);
-  assert.match(index, /logic\.js\?v=20261117a/);
-  assert.match(index, /app\.js\?v=20261117a/);
+  assert.match(index, /logic\.js\?v=20261117b/);
+  assert.match(index, /app\.js\?v=20261117b/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -453,8 +453,8 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261117a/);
-  assert.match(html, /logic\.js\?v=20261117a/);
+  assert.match(html, /app\.js\?v=20261117b/);
+  assert.match(html, /logic\.js\?v=20261117b/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
   assert.match(app, /getDocument\(\{data:/);
@@ -467,7 +467,11 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
 });
 
 test("quiz pending helpers and save-accept rules", () => {
-  assert.equal(logic.quizLockKey("pr23"), "adm_quiz_pr23");
+  assert.equal(logic.nameSlug("Charmae Mallo"), "charmae-mallo");
+  assert.equal(logic.quizLockKey("pr23", "Charmae Mallo"), "adm_quiz_pr23_charmae-mallo");
+  assert.equal(logic.quizLockKey("pr23"), "");
+  assert.equal(logic.quizLockKey("pr23", ""), "");
+  assert.equal(logic.quizLockKey("", "Charmae Mallo"), "");
   assert.equal(logic.quizPendingKey("pr23", "Charmae Mallo"), "adm_quiz_pending_pr23_charmae-mallo");
   assert.equal(logic.quizPendingKey("pr23", ""), "");
   assert.equal(logic.quizPendingKey("", "Charmae Mallo"), "");
@@ -502,8 +506,8 @@ test("quiz score lock is set only after a confirmed save and failed saves can be
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const logicJs = fs.readFileSync(path.join(root, "logic.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261117a/);
-  assert.match(html, /logic\.js\?v=20261117a/);
+  assert.match(html, /app\.js\?v=20261117b/);
+  assert.match(html, /logic\.js\?v=20261117b/);
   assert.match(logicJs, /adm_quiz_pending_/);
   assert.match(app, /function writePending/);
   assert.match(app, /function readPending/);
@@ -512,9 +516,63 @@ test("quiz score lock is set only after a confirmed save and failed saves can be
   assert.match(app, /Retry saving/);
   assert.match(app, /quizSaveAccepted/);
   assert.match(app, /quizPendingKey/);
+  assert.match(app, /quizLockKey/);
+  assert.match(app, /clearLegacyQuizLocks/);
   assert.match(app, /check:\(\)=>get\("action=check&name="/);
-  assert.match(app, /store\("adm_quiz_"\+rec\.sid,1\)/);
-  assert.doesNotMatch(app, /store\("adm_quiz_"\+SID,1\);finish/);
+  assert.match(app, /function confirmQuizOnServer/);
+  assert.match(app, /setQlock\(rec\.sid,rec\.name\)/);
+  assert.match(app, /setQlock\(SID,nm\)/);
+  assert.doesNotMatch(app, /store\("adm_quiz_"\+rec\.sid,1\)/);
+  assert.doesNotMatch(app, /store\("adm_quiz_"\+SID,1\)/);
+  assert.doesNotMatch(app, /store\("adm_quiz_"\+k\)/);
+  assert.doesNotMatch(app, /store\("adm_quiz_"\+id\)/);
   assert.match(app, /Score not saved yet/);
   assert.match(app, /Your score is already graded/);
+  assert.match(app, /\$\("nm"\).*addEventListener\("change"/);
+  assert.match(app, /fillSubjects\(true\)/);
+  assert.match(app, /if\(id&&nm\)confirmQuizOnServer\(id,nm\)/);
+});
+
+test("quiz locks are per learner and legacy phone-wide keys are dropped", () => {
+  assert.equal(logic.quizListStatus(true, "", true, false), "Open");
+  assert.equal(logic.quizListStatus(false, "", true, true), "Closed");
+  assert.equal(logic.quizListStatus(true, "Charmae Mallo", true, false), "Already submitted");
+  assert.equal(logic.quizListStatus(true, "Charmae Mallo", false, true), "Save pending");
+  assert.equal(logic.quizListStatus(true, "Charmae Mallo", false, false), "Open");
+  assert.equal(logic.quizListStatus(false, "Charmae Mallo", false, false), "Closed");
+  assert.equal(logic.isLegacyQuizLockKey("adm_quiz_pr23"), true);
+  assert.equal(logic.isLegacyQuizLockKey("adm_quiz_cesc3"), true);
+  assert.equal(logic.isLegacyQuizLockKey("adm_quiz_pr23_charmae-mallo"), false);
+  assert.equal(logic.isLegacyQuizLockKey("adm_quiz_pending_pr23_charmae-mallo"), false);
+  assert.equal(logic.isLegacyQuizLockKey("adm_qout_charmae mallo_pr23"), false);
+  assert.equal(logic.isLegacyQuizLockKey(""), false);
+  const data = {
+    "adm_quiz_pr23": "1",
+    "adm_quiz_cesc3": "1",
+    "adm_quiz_pr23_charmae-mallo": "1",
+    "adm_quiz_pending_pr23_charmae-mallo": "{\"sid\":\"pr23\"}",
+    "adm_qout_charmae mallo_pr23": "1"
+  };
+  const keys = () => Object.keys(data);
+  const storage = {
+    get length() { return keys().length; },
+    key(i) { return keys()[i] || null; },
+    getItem(k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+    removeItem(k) { delete data[k]; }
+  };
+  assert.equal(logic.clearLegacyQuizLocks(storage), 2);
+  assert.equal(data["adm_quiz_pr23"], undefined);
+  assert.equal(data["adm_quiz_cesc3"], undefined);
+  assert.equal(data["adm_quiz_pr23_charmae-mallo"], "1");
+  assert.equal(data["adm_quiz_pending_pr23_charmae-mallo"], "{\"sid\":\"pr23\"}");
+  assert.equal(data["adm_qout_charmae mallo_pr23"], "1");
+});
+
+test("task cards ignore leftover phone-wide locks and only lock the selected name", () => {
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /localStorage\.removeItem\("adm_task_"\+t\.id\)/);
+  assert.match(app, /const nm=\$\("tnm"\)&&\$\("tnm"\)\.value\.trim\(\),done=!!\(nm&&store\(tkey\(t\.id\)\)\)/);
+  assert.doesNotMatch(app, /store\("adm_task_"\+t\.id\)\|\|store\(tkey/);
+  assert.match(app, /function tkey\(id\)\{return"adm_task_"\+norm\(\$\("tnm"\)\.value\)\+"_"\+id\}/);
+  assert.match(app, /action=checkTask&name=/);
 });

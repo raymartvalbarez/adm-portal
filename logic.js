@@ -380,14 +380,49 @@ function isInlinePdfSource(src) {
 }
 
 
-function quizLockKey(sid) {
-  return "adm_quiz_" + String(sid || "");
+function nameSlug(name) {
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, "-");
+}
+
+function quizLockKey(sid, name) {
+  var n = nameSlug(name);
+  if (!sid || !n) return "";
+  return "adm_quiz_" + sid + "_" + n;
 }
 
 function quizPendingKey(sid, name) {
-  var n = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, "-");
+  var n = nameSlug(name);
   if (!sid || !n) return "";
   return "adm_quiz_pending_" + sid + "_" + n;
+}
+
+function isLegacyQuizLockKey(key) {
+  var k = String(key || "");
+  if (k.indexOf("adm_quiz_") !== 0) return false;
+  if (k.indexOf("adm_quiz_pending_") === 0) return false;
+  return k.slice(9).indexOf("_") === -1 && k.length > 9;
+}
+
+function clearLegacyQuizLocks(storage) {
+  var store = storage;
+  if (!store && typeof localStorage !== "undefined") store = localStorage;
+  if (!store || typeof store.key !== "function" || typeof store.removeItem !== "function") return 0;
+  var keys = [], i, k, n = 0;
+  for (i = 0; i < store.length; i++) {
+    k = store.key(i);
+    if (k) keys.push(k);
+  }
+  for (i = 0; i < keys.length; i++) {
+    if (isLegacyQuizLockKey(keys[i])) { store.removeItem(keys[i]); n++; }
+  }
+  return n;
+}
+
+function quizListStatus(open, name, locked, pending) {
+  var nm = String(name || "").trim();
+  if (nm && locked) return "Already submitted";
+  if (nm && pending) return "Save pending";
+  return open ? "Open" : "Closed";
 }
 
 function quizSaveAccepted(res) {
@@ -466,8 +501,12 @@ if (typeof module !== "undefined" && module.exports) {
     parsePdfSource: parsePdfSource,
     pdfSourceKey: pdfSourceKey,
     isInlinePdfSource: isInlinePdfSource,
+    nameSlug: nameSlug,
     quizLockKey: quizLockKey,
     quizPendingKey: quizPendingKey,
+    isLegacyQuizLockKey: isLegacyQuizLockKey,
+    clearLegacyQuizLocks: clearLegacyQuizLocks,
+    quizListStatus: quizListStatus,
     quizSaveAccepted: quizSaveAccepted,
     quizPendingPayload: quizPendingPayload
   };
