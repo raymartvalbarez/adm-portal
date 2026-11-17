@@ -19,7 +19,9 @@ var TABS = {
   sched:  ['Quiz Schedule',   ['Subject','Grade','Open (Y/N)','Deadline (Manila, yyyy-mm-dd hh:mm)','Notes']],
   // Columns H and I were added Nov 12, 2026 for the Teacher page (appended at the END; A-G never move).
   tasks:  ['Tasks',           ['Task ID','Grade','Subject','Title','Instructions','Deadline (Manila, yyyy-mm-dd hh:mm)','Active (Y/N)','PDF Link','Opens (Manila, yyyy-mm-dd hh:mm)']],
-  subs:   ['Task Submissions',['Timestamp (Manila)','Name','Grade Level','Subject','Section','Task ID','Task Title','File count','Drive folder link']]
+  subs:   ['Task Submissions',['Timestamp (Manila)','Name','Grade Level','Subject','Section','Task ID','Task Title','File count','Drive folder link']],
+  // New tab only. Existing tab names and column orders are never changed.
+  motiv:  ['Motivation Uploads',['Upload ID','Timestamp (Manila)','Title','Caption','Filename','Size (bytes)','MIME','Chunks','Drive folder id','Drive folder link','Status','Episode','Notes']]
 };
 
 function ss_(){ return SpreadsheetApp.openById(SHEET_ID); }
@@ -292,7 +294,7 @@ function saveNsed_(d){
 // page can tell a new backend from an old one. The PIN is stored only as a salted SHA-256 hash in the Script
 // Property TEACHER_PIN_HASH ("salt:hex"). It is never returned. teacherSetPin works only while no PIN is set.
 // To reset a forgotten PIN: Apps Script editor > Project Settings > Script Properties > delete TEACHER_PIN_HASH.
-var TEACHER_ACTIONS_ = { teacherStatus: 1, teacherSetPin: 1, teacherList: 1, teacherPost: 1, teacherToggle: 1 };
+var TEACHER_ACTIONS_ = { teacherStatus: 1, teacherSetPin: 1, teacherList: 1, teacherPost: 1, teacherToggle: 1, teacherUploads: 1, teacherUploadStart: 1, teacherUploadChunk: 1, teacherUploadFinish: 1, teacherUploadFile: 1, teacherUploadSetStatus: 1 };
 var HANDOUT_FOLDER = 'Task Handouts';
 var MAX_PDF_BYTES = 10 * 1024 * 1024;
 var PIN_MAX_FAILS = 10, PIN_LOCK_SECS = 900;
@@ -325,6 +327,12 @@ function teacher_(d){
     else if (d.action === 'teacherList') r = teacherList_();
     else if (d.action === 'teacherPost') r = teacherPost_(d);
     else if (d.action === 'teacherToggle') r = teacherToggle_(d);
+    else if (d.action === 'teacherUploads') r = teacherUploads_();
+    else if (d.action === 'teacherUploadStart') r = teacherUploadStart_(d);
+    else if (d.action === 'teacherUploadChunk') r = teacherUploadChunk_(d);
+    else if (d.action === 'teacherUploadFinish') r = teacherUploadFinish_(d);
+    else if (d.action === 'teacherUploadFile') r = teacherUploadFile_(d);
+    else if (d.action === 'teacherUploadSetStatus') r = teacherUploadSetStatus_(d);
   }
   r = r || BUSY_;
   var o = {}; for (var k in r) o[k] = r[k]; o.teacher = true;
@@ -412,6 +420,161 @@ function teacherToggle_(d){
       return { ok: true, id: id, active: on };
     }
     return { ok: false, error: 'Task not found.' };
+  });
+}
+
+
+// ===== Motivation episode uploads (Teacher page). Files stay in a private Drive folder and are
+// never shared as "anyone with the link". The PIN stays in the POST body (never in a GET URL).
+// The Teacher page sends the clip in chunks; the portal bot later compresses Pending rows and
+// publishes them to GitHub Pages, then sets Status to Published.
+var MOTIV_FOLDER = 'ADM Motivation Uploads';
+var MOTIV_CHUNK = 1500000;          // 1.5 million bytes per chunk (~2 MB as base64)
+var MOTIV_MAX_BYTES = 40 * 1024 * 1024;
+var MOTIV_TITLE_MAX = 150, MOTIV_CAPTION_MAX = 500;
+function motivFolder_(){ return folderPath_(root_, [MOTIV_FOLDER]); }
+function motivPartName_(i){ return 'part-' + ('000' + Number(i)).slice(-3); }
+function motivMimeOk_(name, mime){
+  var n = String(name || '').toLowerCase(), m = String(mime || '').toLowerCase();
+  if (/\.(mp4|m4v|mov|webm|3gp)$/.test(n)) return true;
+  return /^(video\/(mp4|quicktime|webm|3gpp|x-m4v|mpeg))$/.test(m);
+}
+function motivSafeName_(name){
+  var n = String(name || 'clip.mp4').replace(/[\\\/:*?"<>|]+/g, '-').trim();
+  n = n.replace(/[^\w.\- ()ñÑ]+/g, '').trim().slice(0, 80) || 'clip.mp4';
+  if (!/\.(mp4|m4v|mov|webm|3gp)$/i.test(n)) n += '.mp4';
+  return n;
+}
+function motivRowById_(id){
+  id = String(id || '').trim();
+  var rs = rows_('motiv'), i;
+  for (i = 0; i < rs.length; i++) if (String(rs[i][0]) === id) return { row: rs[i], index: i };
+  return null;
+}
+function motivMap_(r){
+  return { id: String(r[0]||''), at: String(r[1]||''), title: String(r[2]||''), caption: String(r[3]||''),
+    name: String(r[4]||''), size: Number(r[5])||0, mime: String(r[6]||''), chunks: Number(r[7])||0,
+    folderId: String(r[8]||''), folder: String(r[9]||''), status: String(r[10]||''), episode: String(r[11]||''),
+    notes: String(r[12]||'') };
+}
+function teacherUploads_(){
+  var list = rows_('motiv').filter(function(r){ return r[0]; }).map(motivMap_);
+  return { ok: true, uploads: list.reverse(), chunk: MOTIV_CHUNK, max: MOTIV_MAX_BYTES };
+}
+function teacherUploadStart_(d){
+  var title = String(d.title || '').trim().slice(0, MOTIV_TITLE_MAX);
+  var caption = String(d.caption || '').trim().slice(0, MOTIV_CAPTION_MAX);
+  var rawName = String(d.name || '');
+  var mime = String(d.mime || '').trim().slice(0, 80);
+  var size = Number(d.size) || 0;
+  if (!title) return { ok: false, error: 'Title is required.' };
+  if (!motivMimeOk_(rawName, mime)) return { ok: false, error: 'Please choose a video file (MP4, MOV, M4V, WebM or 3GP).' };
+  var name = motivSafeName_(rawName);
+  mime = mime || 'video/mp4';
+  if (size < 1) return { ok: false, error: 'That video is empty.' };
+  if (size > MOTIV_MAX_BYTES) return { ok: false, error: 'The video must be 40 MB or smaller. Trim it or send a shorter clip.' };
+  var chunks = Math.ceil(size / MOTIV_CHUNK);
+  var got = Number(d.chunks);
+  if (got && got !== chunks) return { ok: false, error: 'Chunk count does not match the file size. Please try again.' };
+  var parent = motivFolder_(); if (!parent) return BUSY_;
+  return withLock_(20000, function(){
+    var ids = {}; rows_('motiv').forEach(function(r){ ids[String(r[0])] = 1; });
+    var day = now_().slice(0, 10).replace(/-/g, '');
+    var id = '', n;
+    for (n = 0; n < 50 && (!id || ids[id]); n++) id = 'MOT-' + day + '-' + Utilities.getUuid().replace(/-/g, '').slice(0, 4).toUpperCase();
+    if (ids[id]) return { ok: false, error: 'Could not make a unique upload ID. Please try again.' };
+    var f = folder_(parent, id);
+    tab_('motiv').appendRow([id, now_(), title, caption, name, size, mime, chunks, f.getId(), f.getUrl(), 'Uploading', '', '']);
+    return { ok: true, id: id, chunks: chunks, chunk: MOTIV_CHUNK, folder: f.getUrl() };
+  });
+}
+function teacherUploadChunk_(d){
+  var id = String(d.id || '').trim();
+  var index = Number(d.index);
+  if (!id) return { ok: false, error: 'Upload ID is missing.' };
+  var hit = motivRowById_(id);
+  if (!hit) return { ok: false, error: 'Upload not found.' };
+  var rec = motivMap_(hit.row);
+  if (rec.status !== 'Uploading') return { ok: false, error: 'This upload is no longer accepting chunks.' };
+  if (!isFinite(index) || index < 0 || index >= rec.chunks) return { ok: false, error: 'Chunk number is not valid.' };
+  var raw = String(d.data || '').replace(/^data:[^,]*,/, '');
+  if (!raw) return { ok: false, error: 'That chunk was empty. Please try again.' };
+  var bytes;
+  try { bytes = Utilities.base64Decode(raw); } catch (err) { return { ok: false, error: 'That chunk could not be read. Please try again.' }; }
+  var expect = (index === rec.chunks - 1) ? (rec.size - MOTIV_CHUNK * index) : MOTIV_CHUNK;
+  if (bytes.length !== expect) return { ok: false, error: 'Chunk size did not match. Please try that part again.' };
+  var folder;
+  try { folder = DriveApp.getFolderById(rec.folderId); } catch (e) { return { ok: false, error: 'The upload folder is missing. Please start again.' }; }
+  var part = motivPartName_(index);
+  var old = folder.getFilesByName(part);
+  while (old.hasNext()) { try { old.next().setTrashed(true); } catch (e2) {} }
+  folder.createFile(Utilities.newBlob(bytes, 'application/octet-stream', part));
+  return { ok: true, id: id, index: index, received: bytes.length };
+}
+function teacherUploadFinish_(d){
+  var id = String(d.id || '').trim();
+  if (!id) return { ok: false, error: 'Upload ID is missing.' };
+  return withLock_(20000, function(){
+    var hit = motivRowById_(id);
+    if (!hit) return { ok: false, error: 'Upload not found.' };
+    var rec = motivMap_(hit.row);
+    if (rec.status === 'Pending') return { ok: true, id: id, status: 'Pending', size: rec.size };
+    if (rec.status !== 'Uploading') return { ok: false, error: 'This upload cannot be finished now.' };
+    var folder;
+    try { folder = DriveApp.getFolderById(rec.folderId); } catch (e) { return { ok: false, error: 'The upload folder is missing. Please start again.' }; }
+    var i, total = 0;
+    for (i = 0; i < rec.chunks; i++) {
+      var it = folder.getFilesByName(motivPartName_(i));
+      if (!it.hasNext()) return { ok: false, error: 'Part ' + (i + 1) + ' of ' + rec.chunks + ' is missing. Please upload it again.' };
+      var file = it.next();
+      var n = 0;
+      try { n = file.getSize ? file.getSize() : (file.getBlob().getBytes() || []).length; } catch (e2) { n = 0; }
+      total += n;
+    }
+    if (total !== rec.size) return { ok: false, error: 'The uploaded size did not match the file. Please try again.' };
+    var sh = tab_('motiv');
+    sh.getRange(hit.index + 2, 11).setValue('Pending');
+    sh.getRange(hit.index + 2, 13).setValue('Ready to publish');
+    return { ok: true, id: id, status: 'Pending', size: rec.size };
+  });
+}
+function teacherUploadFile_(d){
+  var id = String(d.id || '').trim();
+  var index = Number(d.index);
+  var hit = motivRowById_(id);
+  if (!hit) return { ok: false, error: 'Upload not found.' };
+  var rec = motivMap_(hit.row);
+  if (rec.status === 'Uploading') return { ok: false, error: 'This upload is not finished yet.' };
+  if (!isFinite(index) || index < 0 || index >= rec.chunks) return { ok: false, error: 'Chunk number is not valid.' };
+  var folder;
+  try { folder = DriveApp.getFolderById(rec.folderId); } catch (e) { return { ok: false, error: 'The upload folder is missing.' }; }
+  var it = folder.getFilesByName(motivPartName_(index));
+  if (!it.hasNext()) return { ok: false, error: 'Part ' + (index + 1) + ' is missing.' };
+  var bytes = it.next().getBlob().getBytes() || [];
+  return { ok: true, id: id, index: index, total: rec.chunks, bytes: bytes.length, name: rec.name, mime: rec.mime || 'video/mp4', data: Utilities.base64Encode(bytes) };
+}
+function teacherUploadSetStatus_(d){
+  var id = String(d.id || '').trim();
+  var status = String(d.status || '').trim();
+  var episode = String(d.episode == null ? '' : d.episode).trim().slice(0, 20);
+  var notes = String(d.notes || '').trim().slice(0, 500);
+  if (!id) return { ok: false, error: 'Upload ID is missing.' };
+  if (status !== 'Published' && status !== 'Failed' && status !== 'Pending') return { ok: false, error: 'Status must be Pending, Published or Failed.' };
+  return withLock_(20000, function(){
+    var hit = motivRowById_(id);
+    if (!hit) return { ok: false, error: 'Upload not found.' };
+    var rec = motivMap_(hit.row);
+    if (status === 'Published' && rec.status !== 'Pending' && rec.status !== 'Failed') {
+      return { ok: false, error: 'Only a finished upload can be marked Published.' };
+    }
+    if (status === 'Pending' && rec.status === 'Uploading') {
+      return { ok: false, error: 'Finish the upload before marking it Pending.' };
+    }
+    var sh = tab_('motiv');
+    sh.getRange(hit.index + 2, 11).setValue(status);
+    if (episode || status === 'Published') sh.getRange(hit.index + 2, 12).setValue(episode);
+    if (notes || status !== rec.status) sh.getRange(hit.index + 2, 13).setValue(notes);
+    return { ok: true, id: id, status: status, episode: episode };
   });
 }
 

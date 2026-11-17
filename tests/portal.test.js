@@ -351,8 +351,8 @@ test("teacher page is PIN-gated, linked discreetly from the student home footer,
   assert.match(js, /String\(f\.type\|\|""\)\.toLowerCase\(\)==="application\/pdf"/);
   assert.match(js, /Selected: /);
   assert.match(js, /Please choose a PDF of 10 MB or less/);
-  assert.match(html, /teacher\.js\?v=20261112c/);
-  for (const a of ["teacherStatus", "teacherSetPin", "teacherList", "teacherPost", "teacherToggle"]) assert.match(js, new RegExp(a));
+  assert.match(html, /teacher\.js\?v=20261117d/);
+  for (const a of ["teacherStatus", "teacherSetPin", "teacherList", "teacherPost", "teacherToggle", "teacherUploads", "teacherUploadStart", "teacherUploadChunk", "teacherUploadFinish"]) assert.match(js, new RegExp(a));
   assert.match(js, /j\.teacher!==true/); // old backend -> "not set up yet"
   assert.match(js, /10\*1024\*1024/);
   assert.equal(/localStorage/.test(js), false); // PIN stays in this tab only
@@ -425,7 +425,7 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
   assert.match(teacher, /logic\.js\?v=20261117c/);
-  assert.match(teacher, /teacher\.js\?v=20261112c/);
+  assert.match(teacher, /teacher\.js\?v=20261117d/);
   assert.match(index, /logic\.js\?v=20261117c/);
   assert.match(index, /app\.js\?v=20261117c/);
   assert.match(app, /fillInAppChromeBar/);
@@ -648,4 +648,44 @@ test("motivation tab shows an empty coming-soon state and a phone-friendly playe
   assert.match(script, /720/);
   const videoFiles = fs.readdirSync(path.join(root, "videos")).filter((f) => /\.(mp4|m4v)$/i.test(f));
   assert.deepEqual(videoFiles, []);
+});
+
+
+test("teacher page can upload a Motivation video in PIN-gated chunks", () => {
+  const html = fs.readFileSync(path.join(root, "teacher.html"), "utf8");
+  const js = fs.readFileSync(path.join(root, "teacher.js"), "utf8");
+  const script = fs.readFileSync(path.join(root, "scripts/publish-uploads.js"), "utf8");
+  const wrapper = fs.readFileSync(path.join(root, "scripts/publish-uploads.sh"), "utf8");
+  assert.match(html, /id="vm"/);
+  assert.match(html, /id="vid"/);
+  assert.match(html, /id="vti"/);
+  assert.match(html, /id="vcap"/);
+  assert.match(html, /id="vbtn"/);
+  assert.match(html, /Upload a Motivation video/);
+  assert.match(html, /accept="video\/\*,\.mp4,\.m4v,\.mov,\.webm,\.3gp"/);
+  assert.match(html, /Maximum 40 MB/);
+  assert.match(html, /teacher\.js\?v=20261117d/);
+  assert.match(js, /teacherUploadStart/);
+  assert.match(js, /teacherUploadChunk/);
+  assert.match(js, /teacherUploadFinish/);
+  assert.match(js, /40\*1024\*1024/);
+  assert.match(js, /readSliceB64/);
+  assert.equal(/localStorage/.test(js), false);
+  assert.equal(/\?action=teacherUpload|action=teacherUpload/.test(js.replace(/action:"teacher/g, "")), false);
+  assert.equal(logic.isTeacherVideoFile("talk.mp4", ""), true);
+  assert.equal(logic.isTeacherVideoFile("notes.pdf", "application/pdf"), false);
+  assert.equal(logic.isTeacherVideoFile("clip.MOV", "video/quicktime"), true);
+  const plan = logic.videoUploadPlan(32, 1500000, 40 * 1024 * 1024);
+  assert.equal(plan.ok, true); assert.equal(plan.chunks, 1);
+  const big = logic.videoUploadPlan(41 * 1024 * 1024, 1500000, 40 * 1024 * 1024);
+  assert.equal(big.ok, false); assert.equal(big.error, "too_large");
+  const two = logic.videoUploadPlan(1500004, 1500000, 40 * 1024 * 1024);
+  assert.equal(two.chunks, 2); assert.equal(two.parts[1].bytes, 4);
+  assert.equal(logic.motivPartName(3), "part-003");
+  assert.equal(require("../scripts/publish-uploads.js").parseConfig('const API_URL = "https://example.com/exec";'), "https://example.com/exec");
+  assert.match(script, /ADM_TEACHER_PIN/);
+  assert.match(script, /teacherUploadFile/);
+  assert.match(script, /add-episode\.sh/);
+  assert.doesNotMatch(script, /git push/);
+  assert.match(wrapper, /publish-uploads\.js/);
 });

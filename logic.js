@@ -538,6 +538,39 @@ function episodeSources(ep, quality) {
   return { primary: sd, fallback: hd && hd !== sd ? hd : "" };
 }
 
+
+var VIDEO_UPLOAD_CHUNK = 1500000;
+var VIDEO_UPLOAD_MAX = 40 * 1024 * 1024;
+
+function isTeacherVideoFile(name, mime) {
+  var n = String(name || "").toLowerCase();
+  var m = String(mime || "").toLowerCase();
+  if (/\.(mp4|m4v|mov|webm|3gp)$/.test(n)) return true;
+  return /^(video\/(mp4|quicktime|webm|3gpp|x-m4v|mpeg))$/.test(m);
+}
+
+function videoUploadPlan(size, chunkSize, maxSize) {
+  size = Number(size) || 0;
+  chunkSize = Number(chunkSize) || VIDEO_UPLOAD_CHUNK;
+  maxSize = Number(maxSize) || VIDEO_UPLOAD_MAX;
+  if (chunkSize < 1) chunkSize = VIDEO_UPLOAD_CHUNK;
+  if (size < 1) return { ok: false, error: "empty" };
+  if (size > maxSize) return { ok: false, error: "too_large", size: size, max: maxSize };
+  var chunks = Math.ceil(size / chunkSize);
+  var parts = [];
+  var i, start, end;
+  for (i = 0; i < chunks; i++) {
+    start = i * chunkSize;
+    end = Math.min(size, start + chunkSize);
+    parts.push({ index: i, start: start, end: end, bytes: end - start });
+  }
+  return { ok: true, size: size, chunk: chunkSize, chunks: chunks, parts: parts, max: maxSize };
+}
+
+function motivPartName(i) {
+  return "part-" + ("000" + Number(i)).slice(-3);
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -588,6 +621,11 @@ if (typeof module !== "undefined" && module.exports) {
     parseEpisodeManifest: parseEpisodeManifest,
     publishedEpisodes: publishedEpisodes,
     featuredEpisode: featuredEpisode,
-    episodeSources: episodeSources
+    episodeSources: episodeSources,
+    VIDEO_UPLOAD_CHUNK: VIDEO_UPLOAD_CHUNK,
+    VIDEO_UPLOAD_MAX: VIDEO_UPLOAD_MAX,
+    isTeacherVideoFile: isTeacherVideoFile,
+    videoUploadPlan: videoUploadPlan,
+    motivPartName: motivPartName
   };
 }

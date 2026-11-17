@@ -21,14 +21,17 @@ function env(opts = {}) {
   };
   const ss = { getSheetByName: (n) => sheets[n] || null, insertSheet: (n) => (sheets[n] = sheet(n)) };
   let fid = 0; const folders = {};
-  const mkFolder = (name) => { const f = { id: "F" + ++fid, name, kids: [], isTrashed: () => false, getId() { return this.id; }, getUrl() { return "https://drive/" + this.id; },
-    getFoldersByName(n) { const hit = this.kids.filter((k) => k.name === n); return { hasNext: () => hit.length > 0, next: () => hit[0] }; },
+  const mkFolder = (name) => { const f = { id: "F" + ++fid, name, kids: [], files: [], isTrashed: () => false, getId() { return this.id; }, getUrl() { return "https://drive/" + this.id; },
+    getFoldersByName(n) { const hit = this.kids.filter((k) => k.name === n); let i = 0; return { hasNext: () => i < hit.length, next: () => hit[i++] }; },
     createFolder(n) { const k = mkFolder(n); this.kids.push(k); return k; },
+    getFilesByName(n) { const hit = this.files.filter((x) => x.name === n && !x.trashed); let i = 0; return { hasNext: () => i < hit.length, next: () => hit[i++] }; },
+    getFiles() { const hit = this.files.filter((x) => !x.trashed); let i = 0; return { hasNext: () => i < hit.length, next: () => hit[i++] }; },
     createFile(blob) { if (opts.failOnFile && files.length + 1 === opts.failOnFile) throw new Error("drive fail"); log.push("file:" + (lockHeld ? "locked" : "unlocked"));
       const x = { name: blob.name, type: blob.type, bytes: Array.from(blob.bytes || []), trashed: false, sharing: null, id: "FILE" + (files.length + 1) + "abcdefghij",
         setTrashed(v) { this.trashed = v; }, getUrl: () => "https://file/" + blob.name, getId() { return this.id; }, getName() { return this.name; }, getMimeType() { return this.type; },
+        getSize() { return this.bytes.length; },
         getBlob() { return { getContentType: () => this.type, getBytes: () => this.bytes }; },
-        setSharing(a, p) { if (opts.failSharing) throw new Error("sharing blocked"); this.sharing = a + "/" + p; } }; files.push(x); return x; } };
+        setSharing(a, p) { if (opts.failSharing) throw new Error("sharing blocked"); this.sharing = a + "/" + p; } }; files.push(x); this.files.push(x); return x; } };
     folders[f.id] = f; return f; };
   const root = mkFolder("root"); const cache = {}; const props = { ROOT_ID: root.id }; let uuid = 0;
   const ctx = {
@@ -108,7 +111,7 @@ const tpost = (extra = {}) => Object.assign({ action: "teacherPost", pin: "24681
 
 test("Code.gs teacher: no PIN means every protected action is refused and nothing leaks", () => {
   const e = env();
-  for (const action of ["teacherList", "teacherPost", "teacherToggle"]) {
+  for (const action of ["teacherList", "teacherPost", "teacherToggle", "teacherUploads", "teacherUploadStart", "teacherUploadFile"]) {
     const r = e.post({ action });
     assert.equal(r.ok, false); assert.equal(r.teacher, true);
   }
@@ -339,4 +342,97 @@ test("Code.gs: syncGameScores replaces previous rows instead of appending duplic
   const sh = e.sheets["Game Scores"];
   const names = sh.rows.slice(1).map((row) => row[4]).filter(Boolean);
   assert.equal(names.length, 4);
+});
+
+
+function b64(buf) { return Buffer.from(buf).toString("base64"); }
+
+test("Code.gs teacher: motivation videos upload in chunks, stay private, and list as Pending", () => {
+  const e = env(); setPin(e);
+  const tasksBefore = e.sheets["Tasks"].rows.map((r) => r.slice());
+  const bytes = Buffer.from("ftypisoxxxxxxxxxxxxxxxxxxxxxxxxx"); // 32 bytes
+  const start = e.post({ action: "teacherUploadStart", pin: "246810", title: "Keep going", caption: "A short pep talk.", name: "talk.MP4", mime: "video/mp4", size: bytes.length, chunks: 1 });
+  assert.equal(start.ok, true, JSON.stringify(start));
+  assert.match(start.id, /^MOT-20261112-[0-9A-F]{4}$/);
+  assert.equal(start.chunks, 1);
+  assert.equal(start.chunk, 1500000);
+  const mid = e.post({ action: "teacherUploadChunk", pin: "246810", id: start.id, index: 0, data: b64(bytes) });
+  assert.equal(mid.ok, true, JSON.stringify(mid));
+  assert.equal(mid.received, bytes.length);
+  const fin = e.post({ action: "teacherUploadFinish", pin: "246810", id: start.id });
+  assert.equal(fin.ok, true, JSON.stringify(fin));
+  assert.equal(fin.status, "Pending");
+  const list = e.post({ action: "teacherUploads", pin: "246810" });
+  assert.equal(list.ok, true);
+  assert.equal(list.uploads.length, 1);
+  assert.equal(list.uploads[0].id, start.id);
+  assert.equal(list.uploads[0].status, "Pending");
+  assert.equal(list.uploads[0].title, "Keep going");
+  assert.equal(list.uploads[0].name, "talk.MP4");
+  assert.equal(list.uploads[0].size, 32);
+  const part = e.post({ action: "teacherUploadFile", pin: "246810", id: start.id, index: 0 });
+  assert.equal(part.ok, true);
+  assert.equal(part.data, b64(bytes));
+  assert.equal(Buffer.from(part.data, "base64").equals(bytes), true);
+  assert.equal(e.files.every((f) => f.sharing == null), true); // never "anyone with the link"
+  const folder = e.root.kids.find((k) => k.name === "ADM Motivation Uploads");
+  assert.ok(folder, "ADM Motivation Uploads folder");
+  assert.deepEqual(e.sheets["Tasks"].rows, tasksBefore);
+  const tab = e.sheets["Motivation Uploads"];
+  assert.ok(tab);
+  assert.equal(tab.rows[0][0], "Upload ID");
+  assert.equal(tab.rows[1][10], "Pending");
+  const pub = e.post({ action: "teacherUploadSetStatus", pin: "246810", id: start.id, status: "Published", episode: "1", notes: "Published as Episode 1" });
+  assert.equal(pub.ok, true);
+  assert.equal(pub.status, "Published");
+  assert.equal(e.post({ action: "teacherUploads", pin: "246810" }).uploads[0].episode, "1");
+});
+
+test("Code.gs teacher: motivation upload validates type and size, and GET never carries the PIN", () => {
+  const e = env(); setPin(e);
+  assert.equal(e.post({ action: "teacherUploadStart", pin: "246810", title: "X", name: "notes.pdf", mime: "application/pdf", size: 10, chunks: 1 }).ok, false);
+  assert.equal(e.post({ action: "teacherUploadStart", pin: "246810", title: "X", name: "talk.mp4", size: 0, chunks: 1 }).ok, false);
+  assert.equal(e.post({ action: "teacherUploadStart", pin: "246810", title: "X", name: "talk.mp4", size: 50 * 1024 * 1024, chunks: 1 }).ok, false);
+  assert.equal(e.post({ action: "teacherUploadStart", pin: "246810", title: "", name: "talk.mp4", size: 10, chunks: 1 }).ok, false);
+  assert.equal(e.sheets["Motivation Uploads"], undefined);
+  const g = e.ctx.doGet({ parameter: { action: "teacherUploads", pin: "246810" } });
+  assert.equal(g.ok, false); assert.equal(g.uploads, undefined);
+  assert.equal(g.teacher, true);
+  const g2 = e.ctx.doGet({ parameter: { action: "uploadfile", id: "MOT-1", pin: "246810" } });
+  assert.equal(g2.uploads, undefined); assert.equal(g2.data, undefined);
+  const noPin = e.post({ action: "teacherUploads" });
+  assert.equal(noPin.ok, false); assert.equal(noPin.teacher, true);
+});
+
+test("Code.gs teacher: a missing chunk cannot be finished, and a finished file can be requeued as Failed then Pending", () => {
+  const e = env(); setPin(e);
+  const bytes = Buffer.from("1234567890abcdefghij"); // 20 bytes
+  const start = e.post({ action: "teacherUploadStart", pin: "246810", title: "Try again", name: "clip.mp4", size: bytes.length, chunks: 1 });
+  assert.equal(start.ok, true);
+  const early = e.post({ action: "teacherUploadFinish", pin: "246810", id: start.id });
+  assert.equal(early.ok, false);
+  assert.match(early.error, /missing/i);
+  assert.equal(e.post({ action: "teacherUploadChunk", pin: "246810", id: start.id, index: 0, data: b64(bytes) }).ok, true);
+  assert.equal(e.post({ action: "teacherUploadFinish", pin: "246810", id: start.id }).status, "Pending");
+  assert.equal(e.post({ action: "teacherUploadSetStatus", pin: "246810", id: start.id, status: "Failed", notes: "bad encode" }).status, "Failed");
+  assert.equal(e.post({ action: "teacherUploadSetStatus", pin: "246810", id: start.id, status: "Pending", notes: "retry" }).status, "Pending");
+  assert.equal(e.post({ action: "teacherUploadSetStatus", pin: "246810", id: start.id, status: "Published", episode: "2" }).ok, true);
+  assert.equal(e.post({ action: "teacherUploadFile", pin: "000000", id: start.id, index: 0 }).ok, false);
+});
+
+test("Code.gs teacher: two-chunk motivation upload reconstructs the original bytes", () => {
+  const e = env(); setPin(e);
+  const chunk = 1500000;
+  const bytes = Buffer.concat([Buffer.alloc(chunk, 7), Buffer.from("TAIL")]);
+  const start = e.post({ action: "teacherUploadStart", pin: "246810", title: "Longer clip", name: "clip.mov", mime: "video/quicktime", size: bytes.length, chunks: 2 });
+  assert.equal(start.ok, true);
+  assert.equal(start.chunks, 2);
+  assert.equal(e.post({ action: "teacherUploadChunk", pin: "246810", id: start.id, index: 0, data: b64(bytes.subarray(0, chunk)) }).ok, true);
+  assert.equal(e.post({ action: "teacherUploadChunk", pin: "246810", id: start.id, index: 1, data: b64(bytes.subarray(chunk)) }).ok, true);
+  assert.equal(e.post({ action: "teacherUploadFinish", pin: "246810", id: start.id }).status, "Pending");
+  const a = e.post({ action: "teacherUploadFile", pin: "246810", id: start.id, index: 0 });
+  const b = e.post({ action: "teacherUploadFile", pin: "246810", id: start.id, index: 1 });
+  const got = Buffer.concat([Buffer.from(a.data, "base64"), Buffer.from(b.data, "base64")]);
+  assert.equal(got.equals(bytes), true);
+  assert.equal(e.post({ action: "teacherUploadFile", pin: "246810", id: start.id, index: 2 }).ok, false);
 });
