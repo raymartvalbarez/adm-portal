@@ -153,9 +153,9 @@ test("games are closed and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261112e/);
+  assert.match(html, /logic\.js\?v=20261117a/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261113c/);
+  assert.match(html, /app\.js\?v=20261117a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -252,8 +252,8 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261113c/);
-  assert.match(html, /logic\.js\?v=20261112e/);
+  assert.match(html, /app\.js\?v=20261117a/);
+  assert.match(html, /logic\.js\?v=20261117a/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -420,10 +420,10 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /id="iabbar"/);
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
-  assert.match(teacher, /logic\.js\?v=20261112e/);
+  assert.match(teacher, /logic\.js\?v=20261117a/);
   assert.match(teacher, /teacher\.js\?v=20261112c/);
-  assert.match(index, /logic\.js\?v=20261112e/);
-  assert.match(index, /app\.js\?v=20261113c/);
+  assert.match(index, /logic\.js\?v=20261117a/);
+  assert.match(index, /app\.js\?v=20261117a/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -453,8 +453,8 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261113c/);
-  assert.match(html, /logic\.js\?v=20261112e/);
+  assert.match(html, /app\.js\?v=20261117a/);
+  assert.match(html, /logic\.js\?v=20261117a/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
   assert.match(app, /getDocument\(\{data:/);
@@ -464,4 +464,57 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(app, /pdfSetZoom/);
   assert.match(app, /handoutCard/);
   assert.match(app, /data-pdfsrc="'\+a\+'/);
+});
+
+test("quiz pending helpers and save-accept rules", () => {
+  assert.equal(logic.quizLockKey("pr23"), "adm_quiz_pr23");
+  assert.equal(logic.quizPendingKey("pr23", "Charmae Mallo"), "adm_quiz_pending_pr23_charmae-mallo");
+  assert.equal(logic.quizPendingKey("pr23", ""), "");
+  assert.equal(logic.quizPendingKey("", "Charmae Mallo"), "");
+  assert.equal(logic.quizSaveAccepted({ ok: true }), true);
+  assert.equal(logic.quizSaveAccepted({ ok: false, recovered: true }), true);
+  assert.equal(logic.quizSaveAccepted({ ok: false, dup: true, error: "already_submitted" }), true);
+  assert.equal(logic.quizSaveAccepted({ ok: false, error: "already_submitted" }), true);
+  assert.equal(logic.quizSaveAccepted({ ok: false, closed: true }), false);
+  assert.equal(logic.quizSaveAccepted({ ok: false, error: "busy" }), false);
+  assert.equal(logic.quizSaveAccepted(null), false);
+  const rec = logic.quizPendingPayload({
+    sid: "pr23",
+    name: "Charmae Mallo",
+    grade: "Grade 12",
+    subject: "Practical Research 2 — Quiz 3 (Nov 9)",
+    section: "HUMSS",
+    score: 4,
+    total: 5,
+    percent: 80,
+    topicBreakdown: "Chapter IV Tables: 4/5",
+    answers: "ABCAD",
+    at: 1731800000000
+  });
+  assert.equal(rec.sid, "pr23");
+  assert.equal(rec.score, 4);
+  assert.equal(rec.answers, "ABCAD");
+  assert.equal(logic.quizPendingPayload('{"sid":"pr23"}'), null);
+  assert.equal(logic.quizPendingPayload("not-json"), null);
+});
+
+test("quiz score lock is set only after a confirmed save and failed saves can be retried", () => {
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const logicJs = fs.readFileSync(path.join(root, "logic.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.match(html, /app\.js\?v=20261117a/);
+  assert.match(html, /logic\.js\?v=20261117a/);
+  assert.match(logicJs, /adm_quiz_pending_/);
+  assert.match(app, /function writePending/);
+  assert.match(app, /function readPending/);
+  assert.match(app, /function sendQuizScore/);
+  assert.match(app, /function handleQuizSave/);
+  assert.match(app, /Retry saving/);
+  assert.match(app, /quizSaveAccepted/);
+  assert.match(app, /quizPendingKey/);
+  assert.match(app, /check:\(\)=>get\("action=check&name="/);
+  assert.match(app, /store\("adm_quiz_"\+rec\.sid,1\)/);
+  assert.doesNotMatch(app, /store\("adm_quiz_"\+SID,1\);finish/);
+  assert.match(app, /Score not saved yet/);
+  assert.match(app, /Your score is already graded/);
 });

@@ -379,6 +379,57 @@ function isInlinePdfSource(src) {
   return false;
 }
 
+
+function quizLockKey(sid) {
+  return "adm_quiz_" + String(sid || "");
+}
+
+function quizPendingKey(sid, name) {
+  var n = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, "-");
+  if (!sid || !n) return "";
+  return "adm_quiz_pending_" + sid + "_" + n;
+}
+
+function quizSaveAccepted(res) {
+  if (!res) return false;
+  if (res.ok || res.dup || res.recovered) return true;
+  return res.error === "already_submitted";
+}
+
+function quizPendingPayload(raw) {
+  var p = raw;
+  if (typeof raw === "string") {
+    try { p = JSON.parse(raw); } catch (e) { return null; }
+  }
+  if (!p || typeof p !== "object") return null;
+  var sid = String(p.sid || "").trim();
+  var name = String(p.name || "").trim();
+  var subject = String(p.subject || "").trim();
+  var section = String(p.section || "").trim();
+  var grade = String(p.grade || "").trim();
+  var score = Number(p.score);
+  var total = Number(p.total);
+  if (!sid || !name || !subject || !section || !total || total < 1) return null;
+  if (!isFinite(score) || score < 0 || score > total) return null;
+  var percent = Number(p.percent);
+  if (!isFinite(percent)) percent = Math.round(score / total * 100);
+  var at = Number(p.at);
+  return {
+    v: 1,
+    sid: sid,
+    name: name,
+    grade: grade,
+    subject: subject,
+    section: section,
+    score: score,
+    total: total,
+    percent: percent,
+    topicBreakdown: String(p.topicBreakdown || "").slice(0, 500),
+    answers: String(p.answers || "").slice(0, 200),
+    at: isFinite(at) && at > 0 ? at : 0
+  };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LEGACY_TASK_DATES: LEGACY_TASK_DATES,
@@ -414,6 +465,10 @@ if (typeof module !== "undefined" && module.exports) {
     b64ToUint8Array: b64ToUint8Array,
     parsePdfSource: parsePdfSource,
     pdfSourceKey: pdfSourceKey,
-    isInlinePdfSource: isInlinePdfSource
+    isInlinePdfSource: isInlinePdfSource,
+    quizLockKey: quizLockKey,
+    quizPendingKey: quizPendingKey,
+    quizSaveAccepted: quizSaveAccepted,
+    quizPendingPayload: quizPendingPayload
   };
 }

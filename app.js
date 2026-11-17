@@ -39,15 +39,21 @@ function sched(id){const n=norm(SUBJ[id].n);return(CFG.quizzes||[]).find(q=>norm
 function quizOpen(id){const s=sched(id);return !!(s&&s.open&&(!s.deadline||Date.now()<s.deadline))}
 function dlab(d){return new Date(d+"T00:00:00+08:00").toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric",timeZone:"Asia/Manila"})}
 function sname(k){return SUBJ[k].n.replace(/\s*—\s*Quiz \d+.*$/,"")}
-function qstat(k){return store("adm_quiz_"+k)?"Already submitted":quizOpen(k)?"Open":"Closed"}
+function qstat(k){if(store("adm_quiz_"+k))return"Already submitted";const nm=$("nm")&&$("nm").value.trim();if(nm&&readPending(k,nm))return"Save pending";return quizOpen(k)?"Open":"Closed"}
 function fillDates(){const ds=[...new Set(Object.values(SUBJ).map(s=>s.d))].sort().reverse(),op=ds.filter(d=>Object.keys(SUBJ).some(k=>SUBJ[k].d===d&&quizOpen(k)));
  $("qd").innerHTML=ds.map(d=>'<option value="'+d+'">'+dlab(d)+(op.includes(d)?" · Open":" · Closed")+'</option>').join("");$("qd").value=op[0]||ds[0]||""}
 $("qd").onchange=()=>$("gr").onchange();
-$("gr").onchange=()=>{const g=$("gr").value,dt=$("qd").value,ks=Object.keys(SUBJ).filter(k=>SUBJ[k].g===g&&SUBJ[k].d===dt);
- $("sj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":ks.length?"— Choose subject —":"No quiz on this date")+'</option>'+ks.map(k=>{const st=qstat(k);return'<option value="'+k+'"'+(st==="Closed"?" disabled":"")+'>'+esc(sname(k))+' — '+(st==="Open"?"🟢 Open":st==="Closed"?"🔒 Closed":"✅ Already submitted")+'</option>'}).join("");$("sj").disabled=!ks.length;load("")};
-$("sj").onchange=()=>{load($("sj").value);if(SID&&store("adm_quiz_"+SID))lockOut()};
-function load(id){SID=id;ITEMS=id?SUBJ[id].items:[];$("result").innerHTML="";$("msg").textContent="";$("bar").style.display=id?"block":"none";$("submit").style.display="block";$("qs").style.display="";
+$("gr").onchange=()=>{const g=$("gr").value,dt=$("qd").value,ks=Object.keys(SUBJ).filter(k=>SUBJ[k].g===g&&SUBJ[k].d===dt),nm=$("nm")&&$("nm").value.trim();
+ $("sj").innerHTML='<option value="">'+(!g?"— Choose grade level first —":ks.length?"— Choose subject —":"No quiz on this date")+'</option>'+ks.map(k=>{const st=qstat(k),dis=st==="Closed"?" disabled":"";return'<option value="'+k+'"'+dis+'>'+esc(sname(k))+' — '+(st==="Open"?"🟢 Open":st==="Closed"?"🔒 Closed":st==="Save pending"?"⏳ Save not finished":"✅ Already submitted")+'</option>'}).join("");$("sj").disabled=!ks.length;load("")};
+$("sj").onchange=()=>load($("sj").value);
+function readPending(sid,name){const k=typeof quizPendingKey==="function"?quizPendingKey(sid,name):"";if(!k)return null;try{return quizPendingPayload(localStorage.getItem(k))}catch(e){return null}}
+function writePending(p){const rec=typeof quizPendingPayload==="function"?quizPendingPayload(p):null;if(!rec)return false;const k=quizPendingKey(rec.sid,rec.name);if(!k)return false;try{localStorage.setItem(k,JSON.stringify(rec));return true}catch(e){return false}}
+function clearPending(sid,name){const k=typeof quizPendingKey==="function"?quizPendingKey(sid,name):"";if(!k)return;try{localStorage.removeItem(k)}catch(e){}}
+function load(id){SID=id;ITEMS=id?SUBJ[id].items:[];$("result").innerHTML="";$("msg").textContent="";$("bar").style.display=id?"block":"none";$("submit").style.display="block";$("qs").style.display="";$("gr").disabled=$("sj").disabled=false;
  $("info").textContent=id?ITEMS.length+" items · "+new Set(ITEMS.map(x=>x.t)).size+" topics":"Choose your grade level and subject to start.";
+ if(id&&store("adm_quiz_"+id)){lockOut();return}
+ const nm=$("nm")&&$("nm").value.trim(),pend=id&&nm&&readPending(id,nm);
+ if(pend&&(!SUBJ[id]||pend.subject===SUBJ[id].n)){showQuizResult(pend,quizRetryStatus("Score not saved yet. Tap Retry saving. Your score is already graded — you don't need to answer again."));return}
  let h="",cur="";ITEMS.forEach((it,i)=>{if(it.t!==cur){cur=it.t;h+='<h2 class="sec">'+esc(cur)+'</h2>'}
  h+='<div class="card" id="c'+i+'"><p class="q"><span class="qn">'+(i+1)+'</span>'+esc(it.q)+'</p>'+it.c.map((c,j)=>'<label class="opt"><input type="radio" name="q'+i+'" value="'+j+'"><span class="lt">'+L[j]+'</span><span>'+esc(c)+'</span></label>').join("")+'</div>'});$("qs").innerHTML=h;prog();tick()}
 function prog(){const p=$("prog"),n=ITEMS.length;if(!SID||!n||!$("qs").innerHTML){p.style.display="none";return}p.style.display="block";
@@ -60,26 +66,41 @@ function tick(){const cd=$("cd"),s=SID&&sched(SID);hcd();if(!s||!s.deadline){cd.
  if(Date.now()>=s.deadline&&!$("result").innerHTML){$("qs").innerHTML="";$("bar").style.display="none";cd.textContent="This quiz closed at "+fmt(s.deadline)+".";cd.style.display="block";return}
  cd.style.display="block";cd.textContent="Closes "+fmt(s.deadline)+" · ⏰ "+left(s.deadline)}
 setInterval(tick,15000);
-function lockOut(){$("qs").innerHTML="";$("prog").style.display="none";$("bar").style.display="none";$("info").textContent="You already submitted this. Only one submission is allowed."}
+function lockOut(){$("qs").innerHTML="";$("prog").style.display="none";$("bar").style.display="none";$("submit").style.display="none";$("info").textContent="You already submitted this. Only one submission is allowed."}
+function quizRetryStatus(msg){return'<p class="note" id="st"><b class="err">'+esc(msg)+'</b></p><button type="button" id="qretry" class="go">Retry saving</button>'}
+function topicRows(tb){return String(tb||"").split(";").map(s=>s.trim()).filter(Boolean).map(s=>{const m=s.match(/^(.*):\s*(\d+)\s*\/\s*(\d+)$/);return m?'<tr><td>'+esc(m[1].trim())+'</td><td>'+m[2]+' / '+m[3]+'</td></tr>':""}).join("")}
+function showQuizResult(p,statusHtml,opts){opts=opts||{};$("qs").innerHTML="";$("qs").style.display="none";$("prog").style.display="none";$("bar").style.display="none";$("gr").disabled=$("sj").disabled=true;$("submit").style.display="none";
+ const pct=p.percent,when=p.at?fmt(p.at):fmt(Date.now());
+ $("result").innerHTML='<div class="card score"><div class="cel">'+(pct>=75?"🎉🏆🎉":pct>=50?"👏✨":"💪📚")+'</div><div class="msg">'+(pct>=75?"Great job!":pct>=50?"Well done!":"Keep going, you can do it!")+'</div><div class="note">SHS ADM PORTAL — BAGO NHS · RESULT</div><div class="row"><b style="font-size:1rem;display:inline">'+esc(p.subject)+'</b></div><b>'+p.score+' / '+p.total+'</b><div class="row">'+pct+'%</div><div class="row"><b style="font-size:1.1rem;display:inline">'+esc(p.name)+'</b></div><div class="row">'+esc(p.grade)+' · Section: '+esc(p.section)+'</div><div class="row">'+when+'</div><table>'+topicRows(p.topicBreakdown)+'</table>'+statusHtml+'</div>';
+ window.scrollTo(0,0);$("cd").style.display="none";
+ const retry=$("qretry");if(retry)retry.onclick=()=>sendQuizScore(p,true);
+ if(opts.saved)quizUpload(p.name,p.section,p.grade,p.subject)}
+function sendQuizScore(p,fromRetry){const rec=quizPendingPayload(p);if(!rec)return;writePending(rec);
+ const st=$("st");if(st)st.innerHTML=fromRetry?"Saving score again… please wait, don't close this page":"Saving score…";
+ const retry=$("qretry");if(retry)retry.disabled=true;
+ const body={type:"quiz",name:rec.name,grade:rec.grade,subject:rec.subject,section:rec.section,score:rec.score,total:rec.total,percent:rec.percent,topicBreakdown:rec.topicBreakdown,answers:rec.answers};
+ post(body,{check:()=>get("action=check&name="+encodeURIComponent(rec.name)+"&subject="+encodeURIComponent(rec.subject)).then(j=>!!(j&&j.exists)).catch(()=>false),wait:(n,m)=>{const e=$("st");if(e)e.textContent="Server busy, saving again ("+n+"/"+m+")… don't close this page"}})
+ .then(j=>handleQuizSave(rec,j)).catch(()=>handleQuizSave(rec,null))}
+function handleQuizSave(rec,j){if(typeof quizSaveAccepted==="function"?quizSaveAccepted(j):j&&(j.ok||j.dup||j.error==="already_submitted")){clearPending(rec.sid,rec.name);store("adm_quiz_"+rec.sid,1);showQuizResult(rec,'<p class="note" id="st"><b class="ok">✓ Score saved</b></p>',{saved:true});return}
+ if(j&&j.closed){showQuizResult(rec,quizRetryStatus("Quiz closed. Score not recorded yet. Tap Retry saving if the quiz is open again."));return}
+ showQuizResult(rec,quizRetryStatus("Couldn't save. Keep this page open and tap Retry saving. You can also screenshot this card and send it to your teacher."))}
 $("submit").onclick=()=>{const nm=$("nm").value.trim(),sc=$("sec").value.trim(),msg=$("msg"),bt=$("submit");
  if(!nm||!sc||!SID){msg.textContent="Please enter your name, grade level, subject and section first.";window.scrollTo(0,0);return}
+ if(!quizOpen(SID)&&!readPending(SID,nm)){tick();msg.textContent="This quiz is closed.";return}
+ const sub=SUBJ[SID].n,existing=readPending(SID,nm);
+ if(existing&&existing.subject===sub){msg.textContent="";showQuizResult(existing,quizRetryStatus("Score not saved yet. Tap Retry saving. Your score is already graded — you don't need to answer again."));sendQuizScore(existing,true);return}
  if(!quizOpen(SID)){tick();msg.textContent="This quiz is closed.";return}
  const un=ITEMS.filter((it,i)=>!document.querySelector("input[name=q"+i+"]:checked")).length;
  if(un&&!confirm(un+" item(s) unanswered. Submit anyway?"))return;
- msg.textContent="Checking…";bt.disabled=true;const sub=SUBJ[SID].n;
+ msg.textContent="Checking…";bt.disabled=true;
  get("action=check&name="+encodeURIComponent(nm)+"&subject="+encodeURIComponent(sub)).then(j=>!!(j&&j.exists)).catch(()=>false).then(dup=>{bt.disabled=false;
- if(dup){store("adm_quiz_"+SID,1);lockOut();return}msg.textContent="";store("adm_quiz_"+SID,1);finish(nm,sc,sub)})};
+ if(dup){store("adm_quiz_"+SID,1);clearPending(SID,nm);lockOut();return}msg.textContent="";finish(nm,sc,sub)})};
 function finish(nm,sc,sub){let score=0,per={},ans="";
  ITEMS.forEach((it,i)=>{per[it.t]=per[it.t]||[0,0];per[it.t][1]++;const s=document.querySelector("input[name=q"+i+"]:checked"),v=s?+s.value:-1;ans+=v>=0?L[v]:"-";
   if(v>=0&&H("bnhs|"+SID+"|"+i+"|"+v+"|shs26")===it.k){score++;per[it.t][0]++}});
- $("qs").innerHTML="";$("qs").style.display="none";$("prog").style.display="none";$("bar").style.display="none";$("gr").disabled=$("sj").disabled=true;$("submit").style.display="none";
  const pct=Math.round(score/ITEMS.length*100),tb=Object.keys(per).map(k=>k+": "+per[k][0]+"/"+per[k][1]).join("; ");
- $("result").innerHTML='<div class="card score"><div class="cel">'+(pct>=75?"🎉🏆🎉":pct>=50?"👏✨":"💪📚")+'</div><div class="msg">'+(pct>=75?"Great job!":pct>=50?"Well done!":"Keep going, you can do it!")+'</div><div class="note">SHS ADM PORTAL — BAGO NHS · RESULT</div><div class="row"><b style="font-size:1rem;display:inline">'+esc(sub)+'</b></div><b>'+score+' / '+ITEMS.length+'</b><div class="row">'+pct+'%</div><div class="row"><b style="font-size:1.1rem;display:inline">'+esc(nm)+'</b></div><div class="row">'+esc($("gr").value)+' · Section: '+esc(sc)+'</div><div class="row">'+fmt(Date.now())+'</div><table>'+Object.keys(per).map(k=>'<tr><td>'+esc(k)+'</td><td>'+per[k][0]+' / '+per[k][1]+'</td></tr>').join("")+'</table><p class="note" id="st">Saving score…</p></div>';
- window.scrollTo(0,0);$("cd").style.display="none";
- post({type:"quiz",name:nm,grade:$("gr").value,subject:sub,section:sc,score:score,total:ITEMS.length,percent:pct,topicBreakdown:tb,answers:ans},{wait:(n,m)=>{const e=$("st");if(e)e.textContent="Server busy, saving again ("+n+"/"+m+")…"}})
- .then(j=>{$("st").innerHTML=j.ok?"<b class='ok'>✓ Score saved</b>":(j.dup||j.error==="already_submitted")?"<b class='err'>You already submitted this. Only one submission is allowed. Only the first submission counts.</b>":j.closed?"<b class='err'>Quiz closed. Score not recorded.</b>":"<b class='err'>Couldn't save — please screenshot this card.</b>"})
- .catch(()=>{$("st").innerHTML="<b class='err'>Couldn't save — please screenshot this card and send it to your teacher.</b>"});
- quizUpload(nm,sc,$("gr").value,sub)}
+ const rec=quizPendingPayload({sid:SID,name:nm,grade:$("gr").value,subject:sub,section:sc,score:score,total:ITEMS.length,percent:pct,topicBreakdown:tb,answers:ans,at:Date.now()});
+ writePending(rec);showQuizResult(rec,'<p class="note" id="st">Saving score…</p>');sendQuizScore(rec,false)}
 function quizUpload(nm,sc,g,sub){const k="adm_qout_"+norm(nm)+"_"+SID,c=document.createElement("div");c.className="card task";$("result").appendChild(c);
  if(store(k)){c.innerHTML='<h3>📸 Upload your output</h3><p class="ok"><b>✅ '+ONCE+'</b></p>';return}
  c.innerHTML='<h3>📸 Upload your output</h3><div class="ins">Upload 1–5 photos: a screenshot of your score card and a photo of yourself doing the activity.</div><div class="note" style="text-align:left">'+esc(nm)+' · '+esc(g)+' · '+esc(sub)+' · Section: '+esc(sc)+'</div><label class="f">📷 Add 1–5 photos (take a photo or choose from Gallery). You can add more one at a time.</label><input type="file" accept="image/*"'+MULTI+'><div class="pcount note" style="text-align:left"></div><div class="thumbs"></div><div class="err"></div><button id="qup" class="go">Upload output</button>';
@@ -327,4 +348,4 @@ function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if
    secs.forEach(sec=>ss.add(new Option(sec,sec)));
    ss.value=secs.indexOf(prev)>=0?prev:(secs.length===1?secs[0]:"");fillN()};
   const prev=gi.onchange;gi.onchange=function(ev){if(typeof prev==="function")prev.call(gi,ev);fillS()};
-  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);fillS()})};
+  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);if(g==="gr")ns.addEventListener("change",()=>{if(SID)load(SID)});fillS()})};
