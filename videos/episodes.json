@@ -9,6 +9,16 @@
       "poster": "videos/ep01.jpg",
       "date": "2026-11-17",
       "published": true
+    },
+    {
+      "ep": 2,
+      "title": "Episode 2: The joker",
+      "caption": "",
+      "file": "videos/ep02-480.mp4",
+      "fileHd": "videos/ep02-720.mp4",
+      "poster": "videos/ep02.jpg",
+      "date": "2026-11-18",
+      "published": true
     }
   ]
 }
