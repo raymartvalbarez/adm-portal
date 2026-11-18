@@ -30,3 +30,12 @@ test("no private files in the repo", () => {
   const all = require("child_process").execSync("git ls-files -co --exclude-standard", { cwd: root }).toString();
   assert.doesNotMatch(all, /TEACHER_KEY|quiz_keys|PRIVATE/i);
 });
+
+test("z-table handout card: Nov 19 General Mathematics, no deadline, files exist and are real PDF/PNG", () => {
+  const h = ctx.HANDOUTS.find((x) => x.id === "G11-GM-20261119-ZTABLE");
+  assert.ok(h); assert.equal(h.grade, "Grade 11"); assert.equal(h.subject, "General Mathematics");
+  assert.equal(h.kind, "handout"); assert.equal(h.release, "2026-11-19"); assert.equal(h.deadline, undefined);
+  assert.equal(fs.readFileSync(path.join(root, h.file)).subarray(0, 5).toString(), "%PDF-");
+  const png = fs.readFileSync(path.join(root, "handouts/ZTable_Grade11_GenMath.png"));
+  assert.equal(png.subarray(1, 4).toString(), "PNG");
+});

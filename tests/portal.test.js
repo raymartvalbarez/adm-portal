@@ -175,7 +175,7 @@ test("games section and the tab bar still clears the page", () => {
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261118c/);
-  assert.match(html, /data\.js\?v=20261119a/);
+  assert.match(html, /data\.js\?v=20261119b/);
   assert.match(html, /app\.js\?v=20261118c/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
@@ -194,9 +194,10 @@ test("Week 9 handouts group on Nov 10 and do not ask for a submission", () => {
     ["G12-CESC-20261110-HANDOUT", "Grade 12", "Community Engagement, Solidarity and Citizenship (CESC)", "handouts/CESC_Week9_Handout.pdf"],
     ["G12-ENT-20261110-HANDOUT", "Grade 12", "Entrepreneurship", "handouts/Entrep_Week9_Handout.pdf"]
   ];
-  assert.equal(ctx.HANDOUTS.length, 5);
+  const W9 = ctx.HANDOUTS.filter((h) => /20261110/.test(h.id));
+  assert.equal(W9.length, 5);
   expect.forEach((row, i) => {
-    const h = ctx.HANDOUTS[i];
+    const h = W9[i];
     assert.equal(h.id, row[0]);
     assert.equal(h.grade, row[1]);
     assert.equal(h.subject, row[2]);
@@ -209,7 +210,7 @@ test("Week 9 handouts group on Nov 10 and do not ask for a submission", () => {
     const pdf = fs.readFileSync(path.join(root, h.file));
     assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   });
-  const dates = [...new Set(ctx.HANDOUTS.map((h) => logic.taskReleaseDate(h)))];
+  const dates = [...new Set(W9.map((h) => logic.taskReleaseDate(h)))];
   assert.deepEqual(dates, ["2026-11-10"]);
   assert.equal(logic.defaultTaskDate(["2026-11-09", "2026-11-10", "other"]), "2026-11-10");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
