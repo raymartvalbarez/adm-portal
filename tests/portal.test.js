@@ -139,16 +139,37 @@ test("section and name lists follow the live learner shape", () => {
   assert.match(app, /secs\.length===1\?secs\[0\]:""/);
 });
 
-test("games are closed and the tab bar still clears the page", () => {
+test("games section and the tab bar still clears the page", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  assert.match(html, /Games are closed/);
-  assert.match(html, /Leaderboards are still open, and all saved scores are kept/);
-  assert.equal((html.match(/▶ Play/g) || []).length, 0);
-  assert.equal((html.match(/🔒 Closed/g) || []).length, 4);
-  for (const game of ["integer-racer", "integer-archer", "treasure-diver", "island-navigator"]) {
-    assert.doesNotMatch(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?'));
-    assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html\\?v=20261116a"));
+  const gamesSh = fs.readFileSync(path.join(root, "scripts/games.sh"), "utf8");
+  const open = /Games are open today/.test(html);
+  const closed = /🔒 Games are closed/.test(html);
+  assert.equal(open || closed, true);
+  assert.equal(open && closed, false);
+  assert.match(gamesSh, /open\|close/);
+  assert.match(gamesSh, /integer-racer/);
+  assert.match(gamesSh, /integer-archer/);
+  assert.match(gamesSh, /treasure-diver/);
+  assert.match(gamesSh, /island-navigator/);
+  assert.match(gamesSh, /revert --no-commit/);
+  if (open) {
+    assert.match(html, /are open to play/);
+    assert.match(html, /Still 1 try per game/);
+    assert.equal((html.match(/▶ Play/g) || []).length, 4);
+    assert.equal((html.match(/🔒 Closed/g) || []).length, 0);
+    for (const game of ["integer-racer", "integer-archer", "treasure-diver", "island-navigator"]) {
+      assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?v=\\d{8}[a-z]"'));
+      assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html\\?v=\\d{8}[a-z]"));
+    }
+  } else {
+    assert.match(html, /Leaderboards are still open, and all saved scores are kept/);
+    assert.equal((html.match(/▶ Play/g) || []).length, 0);
+    assert.equal((html.match(/🔒 Closed/g) || []).length, 4);
+    for (const game of ["integer-racer", "integer-archer", "treasure-diver", "island-navigator"]) {
+      assert.doesNotMatch(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?'));
+      assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html\\?v=\\d{8}[a-z]"));
+    }
   }
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
