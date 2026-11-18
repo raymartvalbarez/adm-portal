@@ -19,6 +19,16 @@
       "poster": "videos/ep02.jpg",
       "date": "2026-11-18",
       "published": true
+    },
+    {
+      "ep": 3,
+      "title": "Gambling Cards",
+      "caption": "",
+      "file": "videos/ep03-480.mp4",
+      "fileHd": "videos/ep03-720.mp4",
+      "poster": "videos/ep03.jpg",
+      "date": "2026-11-18",
+      "published": true
     }
   ]
 }
