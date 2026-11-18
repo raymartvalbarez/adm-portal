@@ -350,7 +350,7 @@ async function sendTask(t,card){const nm=$("tnm").value.trim(),sc=$("tsec").valu
 
 
 // ---------- MOTIVATION ----------
-const EP_MANIFEST="videos/episodes.json?v=20261117c";
+const EP_MANIFEST="videos/episodes.json?v=20261118c";
 let EPISODES=[],EPSEL=null,EPQ="sd",EPWAIT=null;
 function epWatched(n){const k=typeof episodeWatchKey==="function"?episodeWatchKey(n):"";return !!(k&&store(k))}
 function markWatched(n){const k=typeof episodeWatchKey==="function"?episodeWatchKey(n):"";if(k)store(k,1);const b=document.querySelector('.epitem[data-ep="'+n+'"] .epw');if(b)b.hidden=false}
@@ -365,12 +365,12 @@ function renderMotivation(){const box=$("epbox");if(!box)return;
  if(!EPSEL||!pub.some(e=>e.ep===EPSEL.ep))EPSEL=(typeof featuredEpisode==="function"?featuredEpisode(pub):pub[pub.length-1]);
  box.innerHTML=episodePlayerHtml(EPSEL)+'<h2 class="sec">Episodes</h2><div class="eplist">'+pub.map(episodeListHtml).join("")+'</div>';
  bindEpisodePlayer(EPSEL);box.querySelectorAll(".epitem").forEach(b=>b.onclick=()=>{const ep=pub.find(x=>String(x.ep)===b.getAttribute("data-ep"));if(!ep)return;EPSEL=ep;renderMotivation();window.scrollTo(0,0)})}
-function episodeListHtml(e){const on=EPSEL&&EPSEL.ep===e.ep,watched=epWatched(e.ep);return '<button type="button" class="epitem'+(on?" on":"")+'" data-ep="'+e.ep+'"><span class="epl">Episode '+e.ep+'</span>'+(watched?'<span class="epw">✓ Watched</span>':"<span class=\"epw\" hidden>✓ Watched</span>")+'<div>'+esc(e.title)+'</div></button>'}
+function episodeListHtml(e){const on=EPSEL&&EPSEL.ep===e.ep,watched=epWatched(e.ep);return '<button type="button" class="epitem'+(on?" on":"")+'" data-ep="'+e.ep+'"><span class="epl">Episode '+e.ep+'</span>'+(watched?'<span class="epw">✓ Watched</span>':"<span class=\"epw\" hidden>✓ Watched</span>")+'<div>'+esc(typeof episodeBaseTitle==="function"?episodeBaseTitle(e.ep,e.title):e.title)+'</div></button>'}
 function episodePlayerHtml(ep){const src=epSrc(ep,EPQ),poster=ep.poster||"",hd=!!ep.fileHd,when=ep.date?( /^\d{4}-\d{2}-\d{2}$/.test(ep.date)&&typeof dlab==="function"?dlab(ep.date):esc(ep.date)):"";
  return '<div class="card vcard"><div class="vwrap"><video id="epvid" controls playsinline webkit-playsinline x5-playsinline preload="metadata"'+(poster?' poster="'+esc(poster)+'"':"")+' controlslist="nodownload">'+
  (src.primary?'<source src="'+esc(src.primary)+'" type="video/mp4">':"")+(src.fallback?'<source src="'+esc(src.fallback)+'" type="video/mp4">':"")+
  'Sorry, this phone cannot play the video.</video><button type="button" class="vplay" id="epplay"><span class="vgo">▶</span><span>Tap to play</span></button></div>'+
- '<div class="vmeta"><h3>Episode '+ep.ep+(ep.title?": "+esc(ep.title):"")+'</h3>'+(ep.caption?'<p class="note" style="text-align:left;margin:0">'+esc(ep.caption)+'</p>':"")+(when?'<p class="note" style="text-align:left;margin:6px 0 0">'+when+'</p>':"")+'</div>'+
+ '<div class="vmeta"><h3>'+esc(typeof episodeHeading==="function"?episodeHeading(ep.ep,ep.title):"Episode "+ep.ep+(ep.title?": "+ep.title:""))+'</h3>'+(ep.caption?'<p class="note" style="text-align:left;margin:0">'+esc(ep.caption)+'</p>':"")+(when?'<p class="note" style="text-align:left;margin:6px 0 0">'+when+'</p>':"")+'</div>'+
  '<div class="vbar">'+(hd?'<button type="button" class="vhd'+(EPQ==="hd"?" on":"")+'" id="ephd" aria-pressed="'+(EPQ==="hd"?"true":"false")+'">'+(EPQ==="hd"?"HD on":"HD")+'</button>':"")+
  (src.primary?'<a class="vdl" id="epdl" href="'+esc(src.primary)+'" download>Download episode</a>':"")+'</div>'+
  '<div class="vfail" id="epfail" hidden>This video could not play here. Download it, or open this page in Chrome.</div></div>'}

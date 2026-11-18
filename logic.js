@@ -521,6 +521,17 @@ function parseEpisodeManifest(raw) {
   return out;
 }
 
+function episodeBaseTitle(n, title) {
+  var t = String(title == null ? "" : title).trim();
+  var num = Math.floor(Number(n));
+  var m = /^episode\s*#?\s*(\d+)\s*[:.\-\u2013\u2014]?\s*(.*)$/i.exec(t);
+  if (m && Number(m[1]) === num) return m[2].trim();
+  return t;
+}
+function episodeHeading(n, title) {
+  var base = episodeBaseTitle(n, title);
+  return "Episode " + Math.floor(Number(n)) + (base ? ": " + base : "");
+}
 function publishedEpisodes(list) {
   return (list || []).filter(function (e) { return e && e.published; }).slice().sort(function (a, b) { return a.ep - b.ep; });
 }
@@ -619,6 +630,8 @@ if (typeof module !== "undefined" && module.exports) {
     episodeWatchKey: episodeWatchKey,
     normalizeEpisode: normalizeEpisode,
     parseEpisodeManifest: parseEpisodeManifest,
+    episodeBaseTitle: episodeBaseTitle,
+    episodeHeading: episodeHeading,
     publishedEpisodes: publishedEpisodes,
     featuredEpisode: featuredEpisode,
     episodeSources: episodeSources,

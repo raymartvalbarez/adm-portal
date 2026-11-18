@@ -174,9 +174,9 @@ test("games section and the tab bar still clears the page", () => {
   assert.match(html, /--tab-bar:90px/);
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(html, /logic\.js\?v=20261117c/);
+  assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /data\.js\?v=20261110a/);
-  assert.match(html, /app\.js\?v=20261117c/);
+  assert.match(html, /app\.js\?v=20261118c/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -277,8 +277,8 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261117c/);
-  assert.match(html, /logic\.js\?v=20261117c/);
+  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /logic\.js\?v=20261118c/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const handouts = fs.readdirSync(path.join(root, "handouts"));
@@ -445,10 +445,10 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /id="iabbar"/);
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
-  assert.match(teacher, /logic\.js\?v=20261117c/);
+  assert.match(teacher, /logic\.js\?v=20261118c/);
   assert.match(teacher, /teacher\.js\?v=20261117d/);
-  assert.match(index, /logic\.js\?v=20261117c/);
-  assert.match(index, /app\.js\?v=20261117c/);
+  assert.match(index, /logic\.js\?v=20261118c/);
+  assert.match(index, /app\.js\?v=20261118c/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -478,8 +478,8 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261117c/);
-  assert.match(html, /logic\.js\?v=20261117c/);
+  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
   assert.match(app, /getDocument\(\{data:/);
@@ -531,8 +531,8 @@ test("quiz score lock is set only after a confirmed save and failed saves can be
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const logicJs = fs.readFileSync(path.join(root, "logic.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261117c/);
-  assert.match(html, /logic\.js\?v=20261117c/);
+  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(logicJs, /adm_quiz_pending_/);
   assert.match(app, /function writePending/);
   assert.match(app, /function readPending/);
@@ -655,8 +655,8 @@ test("motivation tab keeps a coming-soon fallback and a phone-friendly player", 
   assert.match(html, /id="motivation"/);
   assert.match(html, /id="tm"/);
   assert.match(html, /Episode 1 coming soon/);
-  assert.match(html, /app\.js\?v=20261117c/);
-  assert.match(html, /logic\.js\?v=20261117c/);
+  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /html\.sv-motivation #motivation/);
   assert.match(app, /function loadMotivation/);
   assert.match(app, /Episode 1 coming soon/);
@@ -719,4 +719,18 @@ test("teacher page can upload a Motivation video in PIN-gated chunks", () => {
   assert.match(script, /add-episode\.sh/);
   assert.doesNotMatch(script, /git push/);
   assert.match(wrapper, /publish-uploads\.js/);
+});
+
+
+test("episode heading does not repeat the Episode N prefix when the title already has it", () => {
+  assert.equal(logic.episodeHeading(2, "Episode 2: The joker"), "Episode 2: The joker");
+  assert.equal(logic.episodeHeading(1, "episode 1 - Intro of the Dragon"), "Episode 1: Intro of the Dragon");
+  assert.equal(logic.episodeHeading(3, "Gambling Cards"), "Episode 3: Gambling Cards");
+  assert.equal(logic.episodeHeading(4, ""), "Episode 4");
+  assert.equal(logic.episodeHeading(3, "Episode 5: Other"), "Episode 3: Episode 5: Other");
+  assert.equal(logic.episodeBaseTitle(2, "Episode 2: The joker"), "The joker");
+  assert.equal(logic.episodeBaseTitle(3, "Gambling Cards"), "Gambling Cards");
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(app, /episodeHeading\(ep\.ep,ep\.title\)/);
+  assert.match(app, /episodeBaseTitle\(e\.ep,e\.title\)/);
 });
