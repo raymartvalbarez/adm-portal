@@ -140,9 +140,12 @@ test("section and name lists follow the live learner shape", () => {
 });
 
 test("games section and the tab bar still clears the page", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  let html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const gamesSh = fs.readFileSync(path.join(root, "scripts/games.sh"), "utf8");
+  const duelCard = (html.match(/<div class="card gm" id="duelcard">.*?<\/div><\/div><\/div>/s) || [""])[0];
+  const html0 = html;
+  html = html.replace(duelCard, "");
   const open = /Games are open today/.test(html);
   const closed = /🔒 Games are closed/.test(html);
   assert.equal(open || closed, true);
@@ -176,10 +179,29 @@ test("games section and the tab bar still clears the page", () => {
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /data\.js\?v=20261119b/);
-  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /app\.js\?v=20261119c/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
+});
+
+test("Integer Duel card is listed in Games, open, unlimited, and untouched by games.sh", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const gamesSh = fs.readFileSync(path.join(root, "scripts/games.sh"), "utf8");
+  const card = (html.match(/<div class="card gm" id="duelcard">.*?<\/div><\/div><\/div>/s) || [""])[0];
+  assert.ok(card, "duel card present");
+  assert.ok(html.indexOf('id="duelcard"') > html.indexOf('id="glist"'));
+  assert.ok(html.indexOf('id="duelcard"') < html.indexOf('id="gopen"') + html.slice(html.indexOf('id="gopen"')).indexOf("Each learner gets only"));
+  assert.match(card, /<h3>Integer Duel<\/h3>/);
+  assert.ok(card.includes("Integer Duel – challenge a classmate (any grade 7–12) to a tug-of-war of integer questions. Create a duel, send the 5-letter code, and answer 10 questions fast to pull the rope. Unlimited duels; wins go on the leaderboard. Keep the game open while playing."));
+  assert.match(card, /href="https:\/\/raymartvalbarez\.github\.io\/integer-duel\/"[^>]*>▶ Play</);
+  assert.match(card, /href="https:\/\/raymartvalbarez\.github\.io\/integer-duel\/\?demo=1"[^>]*>🤖 Practice</);
+  assert.match(card, /href="https:\/\/raymartvalbarez\.github\.io\/integer-duel\/leaderboard\.html"[^>]*>🏆 Leaderboard</);
+  assert.doesNotMatch(card, /Closed|closed/);
+  // games.sh manages only the four daily-round games; the duel card has its own wrapper, so its regexes never match it.
+  assert.doesNotMatch(gamesSh, /GAMES=\([^)]*integer-duel/);
+  assert.match(gamesSh, /integer-duel/);
+  assert.doesNotMatch(card, /<div class="gb">/);
 });
 
 test("Week 9 handouts group on Nov 10 and do not ask for a submission", () => {
@@ -278,7 +300,7 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /app\.js\?v=20261119c/);
   assert.match(html, /logic\.js\?v=20261118c/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
@@ -449,7 +471,7 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(teacher, /logic\.js\?v=20261118c/);
   assert.match(teacher, /teacher\.js\?v=20261117d/);
   assert.match(index, /logic\.js\?v=20261118c/);
-  assert.match(index, /app\.js\?v=20261118c/);
+  assert.match(index, /app\.js\?v=20261119c/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -479,7 +501,7 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /app\.js\?v=20261119c/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
@@ -532,7 +554,7 @@ test("quiz score lock is set only after a confirmed save and failed saves can be
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const logicJs = fs.readFileSync(path.join(root, "logic.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /app\.js\?v=20261119c/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(logicJs, /adm_quiz_pending_/);
   assert.match(app, /function writePending/);
@@ -656,7 +678,7 @@ test("motivation tab keeps a coming-soon fallback and a phone-friendly player", 
   assert.match(html, /id="motivation"/);
   assert.match(html, /id="tm"/);
   assert.match(html, /Episode 1 coming soon/);
-  assert.match(html, /app\.js\?v=20261118c/);
+  assert.match(html, /app\.js\?v=20261119c/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /html\.sv-motivation #motivation/);
   assert.match(app, /function loadMotivation/);

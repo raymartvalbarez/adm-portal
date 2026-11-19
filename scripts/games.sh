@@ -7,6 +7,8 @@
 #   scripts/games.sh open --push
 #   scripts/games.sh close --date "Nov 18" --version 20261118a
 #
+# Integer Duel (integer-duel, unlimited, not part of the daily round) is intentionally NOT in GAMES
+# below: its card (#duelcard on the portal) is never opened/closed or edited here.
 # Does not touch quizzes, tasks, Motivation, Apps Script, or Sheets.
 set -euo pipefail
 
