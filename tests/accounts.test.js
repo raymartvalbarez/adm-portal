@@ -51,6 +51,7 @@ function env(opts = {}) {
   };
   vm.createContext(ctx);
   vm.runInContext(read("Code.gs") + "\n" + read("Code_accounts.gs"), ctx);
+  if (!opts.noCodes) vm.runInContext("acctProps_().setProperty('ACCT_CODE_'+acctSecId_('Grade 11','ACADS'),'ACADS7');acctProps_().setProperty('ACCT_CODE_'+acctSecId_('Grade 12','HUMSS'),'HUMSS4');", ctx);
   const post = (d) => ctx.doPost({ postData: { contents: JSON.stringify(d) } });
   return { ctx, post, sheets, props, cache, files, folders, fetched, logs, before, rootF };
 }
@@ -58,8 +59,8 @@ const JUAN = { grade: "Grade 11", section: "ACADS", name: "Juan Dela Cruz" };
 
 test("accounts: first-time PIN creates the account; only a salted hash is stored, never the PIN", () => {
   const e = env();
-  assert.deepEqual(e.post({ action: "acctStatus", ...JUAN }), { ok: true, hasPin: false });
-  const r = e.post({ action: "acctSetPin", ...JUAN, pin: "4826" });
+  assert.deepEqual(e.post({ action: "acctStatus", ...JUAN }), { ok: true, hasPin: false, needCode: true });
+  const r = e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" });
   assert.equal(r.ok, true); assert.match(r.token, /^[a-f0-9]{64}$/); assert.deepEqual(r.me, { g: "Grade 11", s: "ACADS", n: "Juan Dela Cruz" });
   const all = JSON.stringify(e.props) + JSON.stringify(e.sheets) + e.logs.join("");
   assert.ok(!all.includes("4826"), "PIN must not be stored anywhere in plain text");
@@ -75,14 +76,14 @@ test("accounts: first-time PIN creates the account; only a salted hash is stored
 
 test("accounts: PIN rules, second claim refused, names must be on the class list", () => {
   const e = env();
-  assert.match(e.post({ action: "acctSetPin", ...JUAN, pin: "12a4" }).error, /exactly 4 numbers/);
-  assert.match(e.post({ action: "acctSetPin", ...JUAN, pin: "1234" }).error, /too easy/);
-  assert.match(e.post({ action: "acctSetPin", ...JUAN, pin: "00000" }).error, /exactly 4/);
-  assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "4826" }).ok, true);
-  const again = e.post({ action: "acctSetPin", ...JUAN, pin: "7391" });
+  assert.match(e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "12a4" }).error, /exactly 4 numbers/);
+  assert.match(e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "1234" }).error, /too easy/);
+  assert.match(e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "00000" }).error, /exactly 4/);
+  assert.equal(e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" }).ok, true);
+  const again = e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "7391" });
   assert.equal(again.ok, false); assert.equal(again.exists, true);
   assert.equal(e.post({ action: "acctLogin", ...JUAN, pin: "7391" }).ok, false);
-  const stranger = e.post({ action: "acctSetPin", grade: "Grade 11", section: "ACADS", name: "Not Listed", pin: "4826" });
+  const stranger = e.post({ action: "acctSetPin", grade: "Grade 11", section: "ACADS", name: "Not Listed", pin: "4826", code: "ACADS7" });
   assert.equal(stranger.ok, false); assert.match(stranger.error, /class list/);
   // case/spacing differences still find the same learner
   assert.equal(e.post({ action: "acctStatus", grade: "grade 11", section: "acads", name: " juan  dela cruz " }).hasPin, true);
@@ -90,7 +91,7 @@ test("accounts: PIN rules, second claim refused, names must be on the class list
 
 test("accounts: login, wrong-PIN lockout, session token and logout", () => {
   const e = env();
-  e.post({ action: "acctSetPin", ...JUAN, pin: "4826" });
+  e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" });
   const ok = e.post({ action: "acctLogin", ...JUAN, pin: "4826" });
   assert.equal(ok.ok, true);
   assert.equal(e.post({ action: "acctMe", token: ok.token }).me.n, "Juan Dela Cruz");
@@ -103,12 +104,12 @@ test("accounts: login, wrong-PIN lockout, session token and logout", () => {
   const locked = e.post({ action: "acctLogin", ...JUAN, pin: "4826" });
   assert.equal(locked.ok, false); assert.equal(locked.locked, true);
   // other learners are not affected
-  assert.equal(e.post({ action: "acctSetPin", grade: "Grade 11", section: "ACADS", name: "Maria Santos", pin: "5071" }).ok, true);
+  assert.equal(e.post({ action: "acctSetPin", grade: "Grade 11", section: "ACADS", name: "Maria Santos", pin: "5071", code: "acads7" }).ok, true);
 });
 
 test("accounts: history is the learner's own, grouped data, and never includes answers or topic breakdown", () => {
   const e = env();
-  const { token } = e.post({ action: "acctSetPin", ...JUAN, pin: "4826" });
+  const { token } = e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" });
   const h = e.post({ action: "acctHistory", token });
   assert.equal(h.ok, true);
   assert.equal(h.quizzes.length, 1); assert.deepEqual(Object.keys(h.quizzes[0]).sort(), ["percent", "score", "subject", "total", "when"]);
@@ -128,7 +129,7 @@ test("accounts: history is the learner's own, grouped data, and never includes a
 
 test("accounts: profile photo is private, in its own Drive folder outside the shared outputs folder", () => {
   const e = env();
-  const { token } = e.post({ action: "acctSetPin", ...JUAN, pin: "4826" });
+  const { token } = e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" });
   const img = "data:image/jpeg;base64," + Buffer.from("fake-jpeg-bytes").toString("base64");
   assert.equal(e.post({ action: "acctPhotoSet", token: "0".repeat(64), image: img }).relogin, true);
   assert.equal(e.post({ action: "acctPhotoSet", token, image: "data:text/html;base64,PGI+" }).ok, false);
@@ -151,7 +152,7 @@ test("accounts: profile photo is private, in its own Drive folder outside the sh
 test("accounts: teacher can list and reset a PIN only with the teacher PIN; reset logs the learner out", () => {
   const e = env();
   e.post({ action: "teacherSetPin", pin: "246813", pin2: "246813" });
-  const { token } = e.post({ action: "acctSetPin", ...JUAN, pin: "4826" });
+  const { token } = e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" });
   const no = e.post({ action: "teacherAcctList", pin: "000000" });
   assert.equal(no.ok, false); assert.equal(no.teacher, true);
   const list = e.post({ action: "teacherAcctList", pin: "246813" });
@@ -163,7 +164,7 @@ test("accounts: teacher can list and reset a PIN only with the teacher PIN; rese
   assert.equal(e.post({ action: "teacherAcctReset", pin: "246813", key: juan.key }).ok, true);
   assert.equal(e.post({ action: "acctMe", token }).relogin, true);
   assert.equal(e.post({ action: "acctStatus", ...JUAN }).hasPin, false);
-  assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "9182" }).ok, true);
+  assert.equal(e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "9182" }).ok, true);
   assert.ok(e.sheets.Accounts.rows[1][7], "reset time recorded");
 });
 
@@ -191,7 +192,8 @@ test("accounts demo backend: create PIN, log in, photo, history, logout (sample 
   const c = await b.call({ action: "config" }); assert.equal(c.learners.length, 5);
   const who = { grade: "Grade 11", section: "ACADS", name: "Juan Dela Cruz" };
   assert.equal((await b.call({ action: "acctStatus", ...who })).hasPin, false);
-  const s = await b.call({ action: "acctSetPin", ...who, pin: "4826" }); assert.equal(s.ok, true);
+  assert.equal((await b.call({ action: "acctSetPin", ...who, pin: "4826", code: "NOPE" })).badCode, true);
+  const s = await b.call({ action: "acctSetPin", ...who, pin: "4826", code: MOCK.CODES["grade 11|acads"] }); assert.equal(s.ok, true);
   assert.equal((await b.call({ action: "acctLogin", ...who, pin: "0001" })).badPin, true);
   const l = await b.call({ action: "acctLogin", ...who, pin: "4826" }); assert.equal(l.ok, true);
   assert.equal((await b.call({ action: "acctPhotoSet", token: l.token, image: "data:image/jpeg;base64,AAAA" })).ok, true);
@@ -223,4 +225,44 @@ test("portal + games use the account name: index locks the pickers, games read o
   assert.match(teacher, /id="va"[^>]*>👤 Accounts/);
   assert.match(read("teacher.js"), /teacherAcctReset/);
   assert.match(read("Code.gs"), /ACCOUNT_ACTIONS_\[d\.action\]\) return out_\(account_\(d\)\)/);
+});
+
+test("class codes: first-time setup needs the section's code; wrong codes are rate-limited; logins don't need it", () => {
+  const none = env({ noCodes: true });
+  const r0 = none.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: "ANYTHING" });
+  assert.equal(r0.ok, false); assert.equal(r0.noCode, true);
+  const e = env();
+  assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "4826" }).badCode, true);
+  assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: "HUMSS4" }).badCode, true, "another section's code does not work");
+  const w = e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: "WRONG1" }); assert.equal(w.left, 2);
+  e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: "WRONG2" }); e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: "WRONG3" });
+  const locked = e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: "ACADS7" });
+  assert.equal(locked.locked, true, "5 wrong codes lock even the right code");
+  assert.equal(e.post({ action: "acctStatus", ...JUAN }).hasPin, false);
+  // another learner of the same section is not locked; code is case/space-insensitive
+  const ana = e.post({ action: "acctSetPin", grade: "Grade 12", section: "HUMSS", name: "Ana Bautista", pin: "5071", code: " humss4 " });
+  assert.equal(ana.ok, true);
+  assert.equal(e.post({ action: "acctLogin", grade: "Grade 12", section: "HUMSS", name: "Ana Bautista", pin: "5071" }).ok, true, "login needs no code");
+  const all = JSON.stringify(e.sheets) + e.logs.join("");
+  assert.ok(!all.includes("ACADS7") && !all.includes("HUMSS4"), "codes never in the sheet or logs");
+});
+
+test("class codes: teacher sees and regenerates codes only with the teacher PIN; old code stops working", () => {
+  const e = env({ noCodes: true });
+  e.post({ action: "teacherSetPin", pin: "246813", pin2: "246813" });
+  const no = e.post({ action: "teacherAcctCodes", pin: "000000" }); assert.equal(no.ok, false); assert.ok(!no.codes);
+  assert.equal(e.post({ action: "teacherAcctCodeNew", pin: "000000", grade: "Grade 11", section: "ACADS" }).ok, false);
+  const list = e.post({ action: "teacherAcctCodes", pin: "246813" });
+  assert.deepEqual(list.codes.map((c) => [c.g, c.s, c.code]), [["Grade 11", "ACADS", ""], ["Grade 12", "HUMSS", ""]]);
+  const a = e.post({ action: "teacherAcctCodeNew", pin: "246813", grade: "Grade 11", section: "ACADS" });
+  assert.match(a.code, /^[A-HJKMNP-Z2-9]{6}$/);
+  assert.equal(e.post({ action: "teacherAcctCodes", pin: "246813" }).codes[0].code, a.code);
+  const b = e.post({ action: "teacherAcctCodeNew", pin: "246813", grade: "Grade 11", section: "ACADS" });
+  assert.notEqual(a.code, b.code);
+  assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: a.code }).badCode, true);
+  assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: b.code.toLowerCase() }).ok, true);
+  assert.equal(e.post({ action: "acctStatus", grade: "Grade 12", section: "HUMSS", name: "Ana Bautista" }).needCode, true);
+  assert.equal(e.post({ action: "acctSetPin", grade: "Grade 12", section: "HUMSS", name: "Ana Bautista", pin: "5071", code: b.code }).noCode, true, "HUMSS has no code yet");
+  assert.ok(!/ACADS7|HUMSS4/.test(read("Code_accounts.gs") + read("Code.gs")), "no real codes in the repo");
+  assert.ok(!/[?&]code=/.test(read("account.js") + read("teacher.js")), "codes never in a URL");
 });

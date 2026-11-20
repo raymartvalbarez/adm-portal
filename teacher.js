@@ -52,7 +52,14 @@ function lockPage(msg){PIN="";try{sessionStorage.removeItem("adm_tpin")}catch(_)
 $("lock").onclick=()=>lockPage("");
 // ---------- learner accounts (Code_accounts.gs) ----------
 let ACCTS=[];
-async function loadAccts(){const box=$("al");if(!box)return;box.innerHTML='<div class="wait">Loading…</div>';const j=await call({action:"teacherAcctList",pin:PIN});
+async function loadCodes(){const box=$("cl2");if(!box)return;box.innerHTML='<div class="wait">Loading…</div>';const j=await call({action:"teacherAcctCodes",pin:PIN});
+ if(j&&j.badPin){lockPage("Please unlock again.");return}
+ if(!j||!j.ok){box.innerHTML='<div class="err">'+esc(j&&j.teacher?j.error:"Class codes are not set up on the server yet (Code_accounts.gs).")+'</div>';return}
+ const cs=j.codes||[];box.innerHTML=cs.map((c,i)=>'<div style="padding:10px 0;border-top:1px solid var(--line)"><div style="font-weight:800">'+esc(c.g+" · "+c.s)+'</div>'+(c.code?'<div style="font-size:1.6rem;font-weight:900;letter-spacing:.2em;margin:4px 0">'+esc(c.code)+'</div>':'<div class="note">No code yet. Learners in this section can\'t create accounts until you make one.</div>')+'<button class="ghost" data-c="'+i+'" style="min-height:44px;margin-top:6px">'+(c.code?"Make a new code":"Make a code")+'</button></div>').join("")||'<div class="note">No sections on the Learners tab.</div>';
+ box.querySelectorAll("button[data-c]").forEach(b=>b.onclick=async()=>{const c=cs[+b.dataset.c];if(c.code&&!confirm("Make a new class code for "+c.g+" "+c.s+"? The old code "+c.code+" will stop working."))return;
+  b.disabled=true;b.textContent="Making…";const r=await call({action:"teacherAcctCodeNew",pin:PIN,grade:c.g,section:c.s});
+  if(r&&r.ok){loadCodes()}else{b.disabled=false;b.textContent="Make a new code";alert((r&&r.error)||"Could not make a code. Try again.")}})}
+async function loadAccts(){loadCodes();const box=$("al");if(!box)return;box.innerHTML='<div class="wait">Loading…</div>';const j=await call({action:"teacherAcctList",pin:PIN});
  if(j&&j.badPin){lockPage("Please unlock again.");return}
  if(!j||!j.ok){box.innerHTML='<div class="card"><div class="err">'+esc(j&&j.teacher?j.error:"Learner accounts are not set up on the server yet (Code_accounts.gs).")+'</div></div>';return}
  ACCTS=j.accounts||[];renderAccts()}

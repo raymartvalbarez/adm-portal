@@ -9,6 +9,7 @@
     { g: "Grade 12", s: "HUMSS", n: "Ana Bautista", l: "Bautista", f: "Ana" },
     { g: "Grade 12", s: "HUMSS", n: "Carlo Mendoza", l: "Mendoza", f: "Carlo" }
   ];
+  var CODES = { "grade 11|acads": "ACADS7", "grade 12|humss": "HUMSS4" }; // DEMO codes only
   function norm(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
   function key(g, s, n) { return norm(g) + "|" + norm(s) + "|" + norm(n); }
   function hash(s) { var x = 0x811c9dc5; s = String(s); for (var i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 0x01000193) >>> 0; return x.toString(16); }
@@ -54,9 +55,12 @@
     function handle(o) {
       var L, k, S;
       if (o.action === "config") return { ok: true, learners: LEARNERS, quizzes: [], tasks: [], now: Date.now() };
-      if (o.action === "acctStatus") { L = learner(o); if (!L) return { ok: false, error: "Your name was not found on the class list. Ask Sir Raymart." }; return { ok: true, hasPin: !!get("pin_" + key(L.g, L.s, L.n)) }; }
+      if (o.action === "acctStatus") { L = learner(o); if (!L) return { ok: false, error: "Your name was not found on the class list. Ask Sir Raymart." }; var hp = !!get("pin_" + key(L.g, L.s, L.n)); return { ok: true, hasPin: hp, needCode: !hp }; }
       if (o.action === "acctSetPin") { L = learner(o); if (!L) return { ok: false, error: "Not on the list." }; var w = weak(o.pin); if (w) return { ok: false, error: w }; k = key(L.g, L.s, L.n);
         if (get("pin_" + k)) return { ok: false, exists: true, error: "This account already has a PIN. Enter your PIN, or ask Sir Raymart to reset it." };
+        var cf = Number(get("cfail_" + k) || 0); if (cf >= 5) return { ok: false, locked: true, error: "Too many wrong class codes. Wait 15 minutes, then try again." };
+        if (String(o.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "") !== CODES[norm(L.g) + "|" + norm(L.s)]) { set("cfail_" + k, String(cf + 1)); var cl = 4 - cf; return { ok: false, badCode: true, left: cl, error: cl > 0 ? "Wrong class code. " + cl + (cl === 1 ? " try" : " tries") + " left." : "Too many wrong class codes. Wait 15 minutes, then try again." }; }
+        del("cfail_" + k);
         set("pin_" + k, hash(k + "|" + o.pin)); return { ok: true, token: token(L), me: { g: L.g, s: L.s, n: L.n } }; }
       if (o.action === "acctLogin") { L = learner(o); if (!L) return { ok: false, error: "Not on the list." }; k = key(L.g, L.s, L.n);
         var f = Number(get("fail_" + k) || 0); if (f >= 5) return { ok: false, locked: true, error: "Too many wrong PINs. Wait 15 minutes, then try again." };
@@ -77,6 +81,6 @@
       call: function (o) { var r = handle(JSON.parse(JSON.stringify(o || {}))); return delay ? new Promise(function (ok) { setTimeout(function () { ok(r); }, delay); }) : Promise.resolve(r); }
     };
   }
-  var api = { create: create, LEARNERS: LEARNERS };
+  var api = { create: create, LEARNERS: LEARNERS, CODES: CODES };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.ACCT_MOCK = api;
 })(typeof window !== "undefined" ? window : this);

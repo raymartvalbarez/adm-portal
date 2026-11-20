@@ -3,7 +3,7 @@
  * project as Code.gs. It shares Code.gs helpers (ss_, rows_, norm_, now_, txt_, withLock_, pinOk_, learners_).
  *
  * Login: the learner picks Grade + Section + Name from the Learners tab and sets their own 4-digit PIN the first
- * time. Only a salted, iterated SHA-256 hash of the PIN is stored (Script Properties, never the sheet, never a URL).
+ * time; that first setup also needs their section's class code (set by the teacher on the Teacher page). Only a salted, iterated SHA-256 hash of the PIN is stored (Script Properties, never the sheet, never a URL).
  * Sessions: a random 64-hex token kept on the learner's phone, sent in the POST body only; the server keeps only
  * the token's hash. Teacher (with the teacher PIN) can list accounts and reset a learner's PIN.
  *
@@ -25,7 +25,13 @@ var ACCT_DAY_FAILS = 15, ACCT_DAY_SECS = 21600;        // 15 wrong PINs in 6 hou
 var ACCT_HASH_ROUNDS = 300;
 var ACCT_PHOTO_MAX = 300000;          // bytes; the phone compresses to ~30-60 KB first
 var ACCT_WEAK_PINS = { '0000':1,'1111':1,'2222':1,'3333':1,'4444':1,'5555':1,'6666':1,'7777':1,'8888':1,'9999':1,'1234':1,'4321':1,'0123':1,'9876':1,'1212':1,'6969':1 };
-var ACCOUNT_ACTIONS_ = { acctStatus: 1, acctSetPin: 1, acctLogin: 1, acctMe: 1, acctPhotoSet: 1, acctPhotoGet: 1, acctHistory: 1, acctLogout: 1, teacherAcctList: 1, teacherAcctReset: 1 };
+// Class codes: one per section, set by the teacher on the Teacher page. Needed ONLY to create an account (first PIN).
+// Kept in Script Properties (ACCT_CODE_<id>), never in the sheet, the repo, a URL or the logs.
+var ACCT_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
+var ACCT_CODE_LEN = 6;
+var ACCT_CODE_MAX_FAILS = 5, ACCT_CODE_LOCK_SECS = 900;       // per learner: 5 wrong codes -> wait 15 minutes
+var ACCT_CODE_SEC_FAILS = 40, ACCT_CODE_SEC_SECS = 21600;     // per section: 40 wrong codes in 6 hours -> wait
+var ACCOUNT_ACTIONS_ = { teacherAcctCodes: 1, teacherAcctCodeNew: 1, acctStatus: 1, acctSetPin: 1, acctLogin: 1, acctMe: 1, acctPhotoSet: 1, acctPhotoGet: 1, acctHistory: 1, acctLogout: 1, teacherAcctList: 1, teacherAcctReset: 1 };
 
 // Game score exports (public, read-only). Keep in sync with the games' namespaces.
 var ACCT_GAME_SOURCES = [
@@ -139,12 +145,39 @@ var ACCT_RELOGIN = { ok: false, relogin: true, error: 'Please log in again.' };
 function acctStatus_(d){
   var L = acctLearner_(d);
   if (!L) return { ok: false, error: 'Your name was not found on the class list. Ask Sir Raymart.' };
-  return { ok: true, hasPin: !!acctProps_().getProperty('ACCT_PIN_' + L.id) };
+  var has = !!acctProps_().getProperty('ACCT_PIN_' + L.id);
+  return { ok: true, hasPin: has, needCode: !has };
+}
+function acctSecId_(g, s){ return acctSha_('sec|' + norm_(g) + '|' + norm_(s)).slice(0, 24); }
+function acctCodeNorm_(c){ return String(c == null ? '' : c).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function acctNewCode_(){
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid() + '|' + Date.now(), Utilities.Charset.UTF_8), out = '';
+  for (var i = 0; i < ACCT_CODE_LEN; i++) out += ACCT_CODE_CHARS.charAt((b[i] & 255) % ACCT_CODE_CHARS.length);
+  return out;
+}
+/** Checks the section's class code for a first-time setup. Returns '' when OK, else an answer object. */
+function acctCodeCheck_(L, code){
+  var cache = CacheService.getScriptCache(), sid = acctSecId_(L.g, L.s);
+  var fk = 'acct_cfail_' + L.id, sk = 'acct_csfail_' + sid;
+  var fails = Number(cache.get(fk) || 0), sfails = Number(cache.get(sk) || 0);
+  if (fails >= ACCT_CODE_MAX_FAILS) return { ok: false, locked: true, error: 'Too many wrong class codes. Wait 15 minutes, then try again.' };
+  if (sfails >= ACCT_CODE_SEC_FAILS) return { ok: false, locked: true, error: 'Too many wrong class codes for your section. Try again later, or ask Sir Raymart.' };
+  var want = acctProps_().getProperty('ACCT_CODE_' + sid);
+  if (!want) return { ok: false, noCode: true, error: "Account setup isn't open for your section yet. Ask Sir Raymart for the class code." };
+  if (!acctSame_(acctCodeNorm_(code), want)) {
+    cache.put(fk, String(fails + 1), ACCT_CODE_LOCK_SECS); cache.put(sk, String(sfails + 1), ACCT_CODE_SEC_SECS);
+    var left = ACCT_CODE_MAX_FAILS - fails - 1;
+    return { ok: false, badCode: true, left: left, error: left > 0 ? 'Wrong class code. ' + left + (left === 1 ? ' try' : ' tries') + ' left.' : 'Too many wrong class codes. Wait 15 minutes, then try again.' };
+  }
+  cache.put(fk, '0', 1);
+  return '';
 }
 function acctSetPin_(d){
   var L = acctLearner_(d);
   if (!L) return { ok: false, error: 'Your name was not found on the class list. Ask Sir Raymart.' };
   var bad = acctPinProblem_(d.pin); if (bad) return { ok: false, error: bad };
+  if (acctProps_().getProperty('ACCT_PIN_' + L.id)) return { ok: false, exists: true, error: 'This account already has a PIN. Enter your PIN, or ask Sir Raymart to reset it.' };
+  var cc = acctCodeCheck_(L, d.code); if (cc) return cc;
   var r = withLock_(20000, function(){
     var p = acctProps_();
     if (p.getProperty('ACCT_PIN_' + L.id)) return { ok: false, exists: true, error: 'This account already has a PIN. Enter your PIN, or ask Sir Raymart to reset it.' };
@@ -319,12 +352,33 @@ function teacherAcctReset_(d){
   return r || BUSY_;
 }
 
+function acctSections_(){
+  var seen = {}, out = [];
+  learners_().forEach(function(x){ var k = norm_(x.g) + '|' + norm_(x.s); if (!seen[k]) { seen[k] = 1; out.push({ g: x.g, s: x.s }); } });
+  return out;
+}
+/** Teacher only (teacher PIN): current class code of every section. */
+function teacherAcctCodes_(){
+  var p = acctProps_();
+  return { ok: true, codes: acctSections_().map(function(x){ return { g: x.g, s: x.s, code: p.getProperty('ACCT_CODE_' + acctSecId_(x.g, x.s)) || '' }; }) };
+}
+/** Teacher only: make a new class code for one section (the old one stops working). Accounts already made are not affected. */
+function teacherAcctCodeNew_(d){
+  var sec = acctSections_().filter(function(x){ return norm_(x.g) === norm_(d.grade) && norm_(x.s) === norm_(d.section); })[0];
+  if (!sec) return { ok: false, error: 'Section not found.' };
+  var code = acctNewCode_();
+  acctProps_().setProperty('ACCT_CODE_' + acctSecId_(sec.g, sec.s), code);
+  return { ok: true, g: sec.g, s: sec.s, code: code };
+}
+
 /** Router. Code.gs doPost calls this first for any action in ACCOUNT_ACTIONS_. */
 function account_(d){
   if (/^teacher/.test(d.action)) {
     var chk = pinOk_(d.pin), r;
     if (!chk.ok) r = chk;
     else if (d.action === 'teacherAcctList') r = teacherAcctList_();
+    else if (d.action === 'teacherAcctCodes') r = teacherAcctCodes_();
+    else if (d.action === 'teacherAcctCodeNew') r = teacherAcctCodeNew_(d);
     else r = teacherAcctReset_(d);
     var o = { teacher: true }; Object.keys(r).forEach(function(k){ o[k] = r[k]; }); o.teacher = true;
     return o;

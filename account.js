@@ -33,21 +33,23 @@ $("lnext").onclick=async()=>{const m=$("lmsg"),b=$("lnext");m.textContent="";
  busy(b,true,"Checking…");const j=await call({action:"acctStatus",grade:L.g,section:L.s,name:L.n});busy(b,false,"Next");
  if(!j||!j.ok){m.textContent=(j&&j.error)||"Something went wrong. Try again.";return}
  PICK=L;HAS_PIN=!!j.hasPin;openPin()};
-function openPin(){show("vpin");["p0","p1","p2"].forEach(i=>$(i).value="");$("pmsg").textContent="";
+function openPin(){show("vpin");["p0","p1","p2","pc"].forEach(i=>$(i).value="");$("pmsg").textContent="";
  const first=PICK.f||PICK.n.split(" ")[0];
  $("ptitle").textContent=HAS_PIN?"Hi "+first+"! Enter your PIN":"Hi "+first+"! Create your PIN";
- $("pnote").textContent=HAS_PIN?PICK.n+" · "+PICK.g+" "+PICK.s:"First time? Choose 4 numbers that only you know. You will use this PIN every time you log in.";
+ $("pnote").textContent=HAS_PIN?PICK.n+" · "+PICK.g+" "+PICK.s:"First time? Type your class code, then choose 4 numbers that only you know. You will use this PIN every time you log in.";
  $("pnew").classList.toggle("hide",HAS_PIN);$("pold").classList.toggle("hide",!HAS_PIN);$("pgo").textContent=HAS_PIN?"Log in":"Create PIN and log in";
- setTimeout(()=>$(HAS_PIN?"p0":"p1").focus(),60)}
+ setTimeout(()=>$(HAS_PIN?"p0":"pc").focus(),60)}
+$("pc").addEventListener("input",e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,8)});
 ["p0","p1","p2"].forEach(i=>$(i).addEventListener("input",e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,4)}));
 $("p0").addEventListener("keydown",e=>{if(e.key==="Enter")$("pgo").click()});$("p2").addEventListener("keydown",e=>{if(e.key==="Enter")$("pgo").click()});
 $("pback").onclick=()=>{PICK=null;show("vlogin")};
 $("pgo").onclick=async()=>{const m=$("pmsg"),b=$("pgo"),label=b.textContent;m.textContent="";let j;
  if(HAS_PIN){const p=$("p0").value;if(!/^\d{4}$/.test(p)){m.textContent="Type your 4-digit PIN.";return}
   busy(b,true,"Checking…");j=await call({action:"acctLogin",grade:PICK.g,section:PICK.s,name:PICK.n,pin:p})}
- else{const bad=A.pinPairProblem($("p1").value,$("p2").value);if(bad){m.textContent=bad;return}
-  busy(b,true,"Saving…");j=await call({action:"acctSetPin",grade:PICK.g,section:PICK.s,name:PICK.n,pin:$("p1").value})}
- busy(b,false,label);["p0","p1","p2"].forEach(i=>$(i).value="");
+ else{const code=$("pc").value.trim();if(!code){m.textContent="Type your class code from Sir Raymart.";return}
+  const bad=A.pinPairProblem($("p1").value,$("p2").value);if(bad){m.textContent=bad;return}
+  busy(b,true,"Saving…");j=await call({action:"acctSetPin",grade:PICK.g,section:PICK.s,name:PICK.n,pin:$("p1").value,code:code})}
+ busy(b,false,label);["p0","p1","p2"].forEach(i=>$(i).value="");if(j&&j.ok)$("pc").value="";
  if(j&&j.exists){HAS_PIN=true;openPin();$("pmsg").textContent=j.error;return}
  if(!j||!j.ok||!j.token){m.textContent=(j&&j.error)||"Something went wrong. Try again.";return}
  A.writeSession(LS,j.me,j.token);openProfile(j.me)};
