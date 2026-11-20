@@ -46,10 +46,23 @@ async function unlock(){const p=$("pin").value.trim(),m=$("ulmsg"),bt=$("ulbtn")
 $("ulbtn").onclick=unlock;$("pin").addEventListener("keydown",e=>{if(e.key==="Enter")unlock()});
 
 function enter(list){show("app");resetForm();renderList(list);resetVid();view("post")}
-function view(w){$("vp").className=w==="post"?"on":"";$("vl").className=w==="list"?"on":"";$("vm")&&($("vm").className=w==="motiv"?"on":"");$("post").classList.toggle("hide",w!=="post");$("list").classList.toggle("hide",w!=="list");$("motiv")&&$("motiv").classList.toggle("hide",w!=="motiv")}
+function view(w){$("va")&&($("va").className=w==="accts"?"on":"");$("accts")&&$("accts").classList.toggle("hide",w!=="accts");$("vp").className=w==="post"?"on":"";$("vl").className=w==="list"?"on":"";$("vm")&&($("vm").className=w==="motiv"?"on":"");$("post").classList.toggle("hide",w!=="post");$("list").classList.toggle("hide",w!=="list");$("motiv")&&$("motiv").classList.toggle("hide",w!=="motiv")}
 $("vp").onclick=()=>view("post");$("vl").onclick=()=>{view("list");loadList()};$("vm")&&($("vm").onclick=()=>{view("motiv");loadUploads()});
 function lockPage(msg){PIN="";try{sessionStorage.removeItem("adm_tpin")}catch(_){}show("unlock");if(msg)$("ulmsg").textContent=msg}
 $("lock").onclick=()=>lockPage("");
+// ---------- learner accounts (Code_accounts.gs) ----------
+let ACCTS=[];
+async function loadAccts(){const box=$("al");if(!box)return;box.innerHTML='<div class="wait">Loading…</div>';const j=await call({action:"teacherAcctList",pin:PIN});
+ if(j&&j.badPin){lockPage("Please unlock again.");return}
+ if(!j||!j.ok){box.innerHTML='<div class="card"><div class="err">'+esc(j&&j.teacher?j.error:"Learner accounts are not set up on the server yet (Code_accounts.gs).")+'</div></div>';return}
+ ACCTS=j.accounts||[];renderAccts()}
+function renderAccts(){const box=$("al"),f=$("af")?$("af").value:"",xs=ACCTS.filter(a=>!f||(f==="on"?a.hasPin:!a.hasPin));
+ const on=ACCTS.filter(a=>a.hasPin).length;
+ box.innerHTML='<div class="card"><p class="note" style="margin-top:0">'+on+' of '+ACCTS.length+' learners have an account.</p>'+(xs.length?xs.map((a,i)=>'<div class="trow" style="padding:10px 0;border-top:1px solid var(--line)"><div style="font-weight:800">'+esc(a.n)+'</div><div class="note">'+esc(a.g+" · "+a.s)+' · '+(a.hasPin?"✅ Account"+(a.lastLogin?" · last login "+esc(a.lastLogin):""):"No account yet")+(a.hasPhoto?" · 📷 photo":"")+(a.reset?" · PIN reset "+esc(a.reset):"")+'</div>'+(a.hasPin?'<button class="ghost" data-k="'+i+'" style="min-height:44px;margin-top:6px">Reset PIN</button>':"")+'</div>').join(""):'<div class="note">No learners here.</div>')+'</div>';
+ box.querySelectorAll("button[data-k]").forEach(b=>b.onclick=async()=>{const a=xs[+b.dataset.k];if(!confirm("Reset the PIN of "+a.n+"? They will create a new PIN the next time they log in. Their history and photo stay."))return;
+  b.disabled=true;b.textContent="Resetting…";const j=await call({action:"teacherAcctReset",pin:PIN,key:a.key});
+  if(j&&j.ok){a.hasPin=false;a.reset="just now";renderAccts()}else{b.disabled=false;b.textContent="Reset PIN";alert((j&&j.error)||"Could not reset. Try again.")}})}
+$("va")&&($("va").onclick=()=>{view("accts");loadAccts()});$("ar")&&($("ar").onclick=loadAccts);$("af")&&($("af").onchange=renderAccts);
 
 function fillSubjects(){const g=$("g").value,s=$("s"),prev=s.value;s.innerHTML=SUBJECTS[g].map(x=>'<option>'+esc(x)+'</option>').join("");if(SUBJECTS[g].includes(prev))s.value=prev}
 $("g").onchange=fillSubjects;

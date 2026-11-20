@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="Cache-Control" content="no-cache"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>My Account — SHS ADM Portal · Bago NHS</title><meta name="theme-color" content="#14532d">
+<style>
+:root{--bg:#f1f5f2;--card:#fff;--ink:#17201b;--muted:#5b6660;--brand:#166534;--brand2:#0f3d24;--acc:#f59e0b;--line:#dfe6e1;--ok:#15803d;--okbg:#dcfce7;--no:#b91c1c;--nobg:#fee2e2;--sel:#e7f5ec;--shadow:0 2px 10px rgba(15,61,36,.08)}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1511;--card:#17221c;--ink:#e8efe9;--muted:#9fb0a6;--line:#2a3a31;--sel:#173a26;--okbg:#14351f;--nobg:#3a1717;--ok:#4ade80;--no:#f87171;--shadow:none}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:17px}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+header{background:linear-gradient(160deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:calc(16px + env(safe-area-inset-top)) 16px 52px}
+.brandrow{display:flex;align-items:center;gap:12px;max-width:640px;margin:0 auto}
+.logo{width:46px;height:46px;flex:none;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:1.5rem}
+.school{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;opacity:.85}header h1{margin:0;font-size:1.3rem;line-height:1.2}
+.back{display:inline-block;color:#fff;opacity:.9;font-weight:700;text-decoration:none;font-size:.92rem;margin:0 auto 10px;max-width:640px}
+.backrow{max-width:640px;margin:0 auto}
+main{max-width:640px;margin:-36px auto 16px;padding:0 12px;position:relative}
+.card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px;border:1px solid var(--line)}
+.card h2{margin:0 0 6px;font-size:1.15rem}
+label.f{font-weight:700;display:block;margin:12px 0 6px;font-size:.95rem}
+input[type=password],input[type=text],select{width:100%;font-size:1rem;min-height:52px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;font-family:inherit;background:var(--card);color:var(--ink);appearance:none;-webkit-appearance:none}
+input.pin{font-size:1.6rem;letter-spacing:.6em;text-align:center;font-weight:800}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 22px) 50%,calc(100% - 16px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+select option{color:#17201b;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(22,101,52,.18)}
+button,.btn{width:100%;min-height:54px;font-size:1.05rem;padding:14px;border:0;border-radius:16px;background:var(--brand);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(22,101,52,.25);text-decoration:none;text-align:center}
+button:disabled{opacity:.7}
+button.ghost,.btn.ghost{background:transparent;color:var(--brand);border:2px solid var(--line);box-shadow:none}
+button.out{background:transparent;color:var(--no);border:2px solid var(--nobg);box-shadow:none}
+.note{font-size:.88rem;color:var(--muted)}.err{color:var(--no);font-weight:700;font-size:.95rem;min-height:1.2em;margin-top:8px}
+.okmsg{color:var(--ok);font-weight:700;font-size:.95rem;margin-top:8px}
+.hide{display:none!important}
+.wait{text-align:center;color:var(--muted);padding:18px;font-weight:700}
+#demo{background:#fef3c7;color:#7a4a00;border:2px dashed #f59e0b;border-radius:14px;padding:10px 12px;font-weight:800;font-size:.9rem;text-align:center;margin-bottom:12px}
+.who{display:flex;gap:14px;align-items:center}
+.av{width:96px;height:96px;flex:none;border-radius:50%;background:var(--sel);border:3px solid var(--brand);display:grid;place-items:center;font-size:2rem;font-weight:800;color:var(--brand);overflow:hidden;position:relative}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.who h2{margin:0;font-size:1.2rem;line-height:1.25;word-break:break-word}.who .meta{color:var(--muted);font-weight:700;font-size:.95rem}
+.photobtn{display:flex;align-items:center;justify-content:center;min-height:48px;margin-top:12px;border:2px solid var(--line);border-radius:14px;font-weight:800;color:var(--brand);cursor:pointer;gap:8px}
+.photobtn input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.priv{background:var(--sel);border-radius:12px;padding:8px 10px;font-size:.85rem;margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.stat{background:var(--bg);border-radius:12px;padding:8px 4px;text-align:center}.stat b{display:block;font-size:1.25rem;line-height:1.2}.stat span{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:4px;margin-bottom:12px;position:sticky;top:0;z-index:5}
+.seg button{margin:0;min-height:46px;padding:6px 2px;font-size:.82rem;background:transparent;color:var(--muted);box-shadow:none;border-radius:12px;flex-direction:column;gap:0;line-height:1.15}
+.seg button.on{background:var(--brand);color:#fff}
+.seg button .i{font-size:1.15rem}
+.item{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}
+.item .ic{flex:none;width:38px;height:38px;border-radius:12px;background:var(--sel);display:grid;place-items:center;font-size:1.15rem}
+.item .bd{flex:1;min-width:0}.item .t{font-weight:800;line-height:1.3;word-break:break-word}.item .s{font-size:.85rem;color:var(--muted)}
+.item .r{flex:none;text-align:right;font-weight:800}
+.pill{display:inline-block;border-radius:99px;padding:2px 10px;font-size:.8rem;font-weight:800}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.no{background:var(--nobg);color:var(--no)}.pill.mid{background:#fef3c7;color:#7a4a00}
+.sub{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);font-weight:800;margin:14px 0 4px}
+.empty{color:var(--muted);text-align:center;padding:14px 4px;font-weight:600}
+.links{display:grid;grid-template-columns:1fr 1fr;gap:8px}.links .btn{margin-top:0;font-size:.95rem;min-height:50px}
+footer{text-align:center;font-size:.85rem;color:var(--muted);margin:20px 0}
+</style>
+</head><body>
+<header><div class="backrow"><a class="back" href="index.html">← ADM Portal</a></div>
+<div class="brandrow"><div class="logo">👤</div><div><div class="school">Bago National High School</div><h1>My ADM Account</h1></div></div></header>
+<main>
+<div id="demo" class="hide">🧪 DEMO MODE: sample names and sample data only. Nothing here is saved to the real portal.</div>
+<div class="wait" id="loading">Loading…</div>
+<div class="card hide" id="notready"><h2>Accounts are not open yet</h2><p class="note">Please wait for Sir Raymart's announcement in the GC.</p><a class="btn ghost" href="index.html">Back to ADM Portal</a></div>
+
+<section id="vlogin" class="hide"><div class="card"><h2>Log in</h2><p class="note">Pick your name from the class list. The first time, you will create your own 4-digit PIN.</p>
+<label class="f" for="lg">Grade level</label><select id="lg"><option value="">— Choose grade level —</option></select>
+<label class="f" for="ls">Section</label><select id="ls" disabled><option value="">— Choose grade level first —</option></select>
+<label class="f" for="ln">Your name</label><select id="ln" disabled><option value="">— Choose section first —</option></select>
+<div class="err" id="lmsg"></div><button id="lnext">Next</button>
+<p class="note">Name not on the list? Tell Sir Raymart.</p></div></section>
+
+<section id="vpin" class="hide"><div class="card"><h2 id="ptitle">Enter your PIN</h2><p class="note" id="pnote"></p>
+<div id="pnew" class="hide"><label class="f" for="p1">New 4-digit PIN</label><input class="pin" type="password" id="p1" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password">
+<label class="f" for="p2">Type the same PIN again</label><input class="pin" type="password" id="p2" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password"></div>
+<div id="pold" class="hide"><label class="f" for="p0">Your 4-digit PIN</label><input class="pin" type="password" id="p0" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password"></div>
+<div class="err" id="pmsg"></div><button id="pgo">Log in</button><button class="ghost" id="pback">← Not me / choose another name</button>
+<p class="note">🔒 Keep your PIN secret. Forgot it? Ask Sir Raymart to reset it.</p></div></section>
+
+<section id="vprof" class="hide">
+<div class="card"><div class="who"><div class="av" id="av">?</div><div><h2 id="pname"></h2><div class="meta" id="pmeta"></div></div></div>
+<label class="photobtn" for="photo">📷 <span id="phlabel">Add profile picture</span><input type="file" id="photo" accept="image/*"></label>
+<div id="phmsg" class="err"></div>
+<div class="priv">🔒 Only you and Sir Raymart can see your photo. It never appears on leaderboards.</div>
+<div class="stats"><div class="stat"><b id="ct">–</b><span>Tasks</span></div><div class="stat"><b id="cq">–</b><span>Quizzes</span></div><div class="stat"><b id="cg">–</b><span>Games</span></div><div class="stat"><b id="cd">–</b><span>Duels</span></div></div></div>
+<h2 class="sub" style="margin-left:6px">📚 My history</h2>
+<div class="seg" id="hseg"><button data-h="tasks" class="on"><span class="i">📷</span>Tasks</button><button data-h="quizzes"><span class="i">📝</span>Quizzes</button><button data-h="games"><span class="i">🎮</span>Games</button><button data-h="duels"><span class="i">⚔️</span>Duel</button></div>
+<div class="card" id="hbox"><div class="wait">Loading your history…</div></div>
+<div class="card"><div class="links"><a class="btn" href="index.html#quiz">📝 Quiz</a><a class="btn" href="index.html#tasks">📷 Tasks</a><a class="btn ghost" href="index.html?view=games">🎮 Games</a><a class="btn ghost" href="https://raymartvalbarez.github.io/integer-duel/">⚔️ Duel</a></div>
+<p class="note">You stay logged in on this phone. The portal and games fill in your name for you.</p>
+<button class="out" id="logout">Log out on this phone</button></div>
+</section>
+<footer>ADM Portal by Sir Raymart Valbarez</footer>
+</main>
+<script src="config.js?v=20261105w"></script>
+<script src="logic.js?v=20261118c"></script>
+<script src="accounts-logic.js?v=20261120a"></script>
+<script>if(/(?:^|[?&])mock=1(?:&|$)/.test(location.search))document.write('<script src="accounts-mock.js?v=20261120a"><\/script>')</script>
+<script src="account.js?v=20261120a"></script>
+</body></html>

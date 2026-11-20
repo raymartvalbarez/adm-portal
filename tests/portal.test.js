@@ -171,7 +171,7 @@ test("games section and the tab bar still clears the page", () => {
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /data\.js\?v=20261119b/);
-  assert.match(html, /app\.js\?v=20261119d/);
+  assert.match(html, /app\.js\?v=20261120a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
   assert.match(app, /handoutCard/);
@@ -292,7 +292,7 @@ test("task instructions can surface a PDF download without showing the raw URL",
   assert.match(app, /Open PDF/);
   assert.match(app, /Download PDF/);
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261119d/);
+  assert.match(html, /app\.js\?v=20261120a/);
   assert.match(html, /logic\.js\?v=20261118c/);
   const pdf = fs.readFileSync(path.join(root, "handouts/Findings_SCR_Activity_Nov12.pdf"));
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
@@ -387,7 +387,7 @@ test("teacher page is PIN-gated, linked discreetly from the student home footer,
   assert.match(js, /String\(f\.type\|\|""\)\.toLowerCase\(\)==="application\/pdf"/);
   assert.match(js, /Selected: /);
   assert.match(js, /Please choose a PDF of 10 MB or less/);
-  assert.match(html, /teacher\.js\?v=20261117d/);
+  assert.match(html, /teacher\.js\?v=20261120a/);
   for (const a of ["teacherStatus", "teacherSetPin", "teacherList", "teacherPost", "teacherToggle", "teacherUploads", "teacherUploadStart", "teacherUploadChunk", "teacherUploadFinish"]) assert.match(js, new RegExp(a));
   assert.match(js, /j\.teacher!==true/); // old backend -> "not set up yet"
   assert.match(js, /10\*1024\*1024/);
@@ -461,9 +461,9 @@ test("in-app browsers get an Open in Chrome intent URL; Chrome and Safari do not
   assert.match(index, /position:sticky/);
   assert.match(teacher, /id="iabbar"/);
   assert.match(teacher, /logic\.js\?v=20261118c/);
-  assert.match(teacher, /teacher\.js\?v=20261117d/);
+  assert.match(teacher, /teacher\.js\?v=20261120a/);
   assert.match(index, /logic\.js\?v=20261118c/);
-  assert.match(index, /app\.js\?v=20261119d/);
+  assert.match(index, /app\.js\?v=20261120a/);
   assert.match(app, /fillInAppChromeBar/);
   assert.match(app, /attachInAppChromeHelp/);
   assert.match(app, /function iabErr/);
@@ -493,7 +493,7 @@ test("inline PDF viewer decodes base64, parses sources, and is wired in the port
   assert.match(html, /id="pdfzfit"/);
   assert.match(html, />Fit width</);
   assert.match(html, /id="pdfpages"/);
-  assert.match(html, /app\.js\?v=20261119d/);
+  assert.match(html, /app\.js\?v=20261120a/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /body\.pdf-open nav\.tabs/);
   assert.match(app, /cdn\.jsdelivr\.net\/npm\/pdfjs-dist@3\.11\.174\/legacy\/build\/pdf\.min\.js/);
@@ -546,7 +546,7 @@ test("quiz score lock is set only after a confirmed save and failed saves can be
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const logicJs = fs.readFileSync(path.join(root, "logic.js"), "utf8");
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /app\.js\?v=20261119d/);
+  assert.match(html, /app\.js\?v=20261120a/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(logicJs, /adm_quiz_pending_/);
   assert.match(app, /function writePending/);
@@ -670,7 +670,7 @@ test("motivation tab keeps a coming-soon fallback and a phone-friendly player", 
   assert.match(html, /id="motivation"/);
   assert.match(html, /id="tm"/);
   assert.match(html, /Episode 1 coming soon/);
-  assert.match(html, /app\.js\?v=20261119d/);
+  assert.match(html, /app\.js\?v=20261120a/);
   assert.match(html, /logic\.js\?v=20261118c/);
   assert.match(html, /html\.sv-motivation #motivation/);
   assert.match(app, /function loadMotivation/);
@@ -710,7 +710,7 @@ test("teacher page can upload a Motivation video in PIN-gated chunks", () => {
   assert.match(html, /Upload a Motivation video/);
   assert.match(html, /accept="video\/\*,\.mp4,\.m4v,\.mov,\.webm,\.3gp"/);
   assert.match(html, /Maximum 40 MB/);
-  assert.match(html, /teacher\.js\?v=20261117d/);
+  assert.match(html, /teacher\.js\?v=20261120a/);
   assert.match(js, /teacherUploadStart/);
   assert.match(js, /teacherUploadChunk/);
   assert.match(js, /teacherUploadFinish/);

@@ -9,6 +9,7 @@
 html{font-size:17px;scroll-padding-bottom:calc(var(--tab-bar) + var(--tab-clear) + env(safe-area-inset-bottom))}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:calc(var(--tab-bar) + var(--tab-clear) + env(safe-area-inset-bottom))}
 header{background:linear-gradient(160deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:18px 16px 54px;position:relative}
 .brandrow{display:flex;align-items:center;gap:12px;max-width:640px;margin:0 auto}
+.acctlink{margin-left:auto;flex:none;display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:800;font-size:.88rem;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:8px 12px;max-width:44%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.acctlink span{overflow:hidden;text-overflow:ellipsis}
 .logo{width:48px;height:48px;flex:none;border-radius:50%;background:#fff;display:grid;place-items:center}
 .school{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;opacity:.85}header h1{margin:0;font-size:1.35rem;line-height:1.2}
 .banner{max-width:640px;margin:14px auto 0;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:10px 12px;font-size:.9rem;display:flex;gap:10px;align-items:center}
@@ -133,7 +134,7 @@ body.pdf-open nav.tabs{display:none!important}
 <div id="svbar" hidden><div class="svinner"><div class="school">Bago National High School</div><h1 id="svtitle">ADM</h1></div></div>
 <header>
 <div class="brandrow"><div class="logo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
-<div><div class="school">Bago National High School</div><h1>SHS ADM Portal</h1></div></div>
+<div><div class="school">Bago National High School</div><h1>SHS ADM Portal</h1></div><a class="acctlink" id="acctlink" href="account.html">👤 <span>My Account</span></a></div>
 <div class="banner"><span style="font-size:1.4rem">🌡️</span><div><b>Classes suspended</b> due to high heat index. Learn at home through ADM. Grade 11 &amp; 12.</div></div>
 <div class="hcd" id="hcd"></div>
 </header>
@@ -180,5 +181,7 @@ body.pdf-open nav.tabs{display:none!important}
 <script src="logic.js?v=20261118c"></script>
 <script src="config.js?v=20261105w"></script>
 <script src="data.js?v=20261119b"></script>
-<script src="app.js?v=20261119d"></script>
+<script src="accounts-logic.js?v=20261120a"></script>
+<script src="app.js?v=20261120a"></script>
+<script>try{var __me=ACCT.readIdentity(localStorage);if(__me&&ACCT.readToken(localStorage))document.querySelector("#acctlink span").textContent=__me.n.split(" ")[0]}catch(_){}</script>
 </body></html>

@@ -65,7 +65,7 @@ $("nm")&&$("nm").addEventListener("change",()=>fillSubjects(true));
 function readPending(sid,name){const k=typeof quizPendingKey==="function"?quizPendingKey(sid,name):"";if(!k)return null;try{return quizPendingPayload(localStorage.getItem(k))}catch(e){return null}}
 function writePending(p){const rec=typeof quizPendingPayload==="function"?quizPendingPayload(p):null;if(!rec)return false;const k=quizPendingKey(rec.sid,rec.name);if(!k)return false;try{localStorage.setItem(k,JSON.stringify(rec));return true}catch(e){return false}}
 function clearPending(sid,name){const k=typeof quizPendingKey==="function"?quizPendingKey(sid,name):"";if(!k)return;try{localStorage.removeItem(k)}catch(e){}}
-function load(id){SID=id;ITEMS=id?SUBJ[id].items:[];$("result").innerHTML="";$("msg").textContent="";$("bar").style.display=id?"block":"none";$("submit").style.display="block";$("qs").style.display="";$("gr").disabled=$("sj").disabled=false;
+function load(id){SID=id;ITEMS=id?SUBJ[id].items:[];$("result").innerHTML="";$("msg").textContent="";$("bar").style.display=id?"block":"none";$("submit").style.display="block";$("qs").style.display="";$("gr").disabled=!!ACCT_LOCK.gr;$("sj").disabled=false;
  $("info").textContent=id?ITEMS.length+" items · "+new Set(ITEMS.map(x=>x.t)).size+" topics":"Choose your grade level and subject to start.";
  const nm=qname();
  if(id&&nm&&hasQlock(id,nm)){lockOut();return}
@@ -419,4 +419,10 @@ function setupNames(){const LS=(CFG.learners||[]).filter(x=>x&&x.g&&x.s&&x.n);if
    secs.forEach(sec=>ss.add(new Option(sec,sec)));
    ss.value=secs.indexOf(prev)>=0?prev:(secs.length===1?secs[0]:"");fillN()};
   const prev=gi.onchange;gi.onchange=function(ev){fillS();if(typeof prev==="function")prev.call(gi,ev)};
-  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);if(g==="gr"){ns.addEventListener("change",()=>fillSubjects(true));ss.addEventListener("change",()=>fillSubjects(true))}fillS()})};
+  gi.addEventListener("input",fillS);ss.addEventListener("change",fillN);ns.addEventListener("change",sync);if(g==="gr"){ns.addEventListener("change",()=>fillSubjects(true));ss.addEventListener("change",()=>fillSubjects(true))}fillS();lockToAccount(LS,gi,ss,ns)})};
+// Logged in to "My ADM Account" on this phone: fill in and lock Grade / Section / Name so the name is always the same.
+var ACCT_LOCK={};
+function lockToAccount(LS,gi,ss,ns){if(typeof ACCT==="undefined")return;const me=ACCT.readIdentity(localStorage),L=ACCT.matchLearner(LS,me);if(!L)return;
+ const go=(el,ok)=>{const o=[...el.options].find(ok);if(!o)return false;el.value=o.value;el.dispatchEvent(new Event("change"));return true};
+ if(!go(gi,o=>o.value&&typeof sameGrade==="function"?sameGrade(L.g,o.value):o.value===L.g)||!go(ss,o=>o.value===L.s)||!go(ns,o=>o.value===L.n))return;
+ gi.disabled=ss.disabled=ns.disabled=true;ACCT_LOCK[gi.id]=true;if(ns.parentNode&&!ns.parentNode.querySelector(".acctlock")){const d=document.createElement("p");d.className="note acctlock";d.style.textAlign="left";d.innerHTML="🔒 Logged in as <b></b>. <a href=\"account.html\">My Account</a>";d.querySelector("b").textContent=L.n;ns.after(d)}}

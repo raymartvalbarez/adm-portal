@@ -161,6 +161,7 @@ function doPost(e){
   // Nothing is kept when busy: photos saved by a busy request are trashed before answering.
   try {
     var d = JSON.parse(e.postData.contents);
+    if (typeof ACCOUNT_ACTIONS_ !== 'undefined' && ACCOUNT_ACTIONS_[d.action]) return out_(account_(d)); // learner accounts (Code_accounts.gs)
     if (TEACHER_ACTIONS_[d.action]) return out_(teacher_(d));
     var r = d.action === 'nsed' ? saveNsed_(d)
           : d.type === 'task' ? saveTask_(d)
