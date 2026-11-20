@@ -4,8 +4,8 @@
 (function(){
 const $=id=>document.getElementById(id),A=window.ACCT;
 const MOCK=!!window.ACCT_MOCK&&(!!window.ACCT_FORCE_MOCK||/(?:^|[?&])mock=1(?:&|$)/.test(location.search));
-const mock=MOCK?window.ACCT_MOCK.create(localStorage):null;
 const LS=(()=>{try{localStorage.setItem("__t","1");localStorage.removeItem("__t");return localStorage}catch(e){const m={};return{getItem:k=>k in m?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:k=>{delete m[k]}}}})();
+const mock=MOCK?window.ACCT_MOCK.create(LS):null;
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]))}
 // An old backend (before Code_accounts.gs) answers account actions with {ok:false,error:"missing"} and saves nothing.
 async function call(o,tries){const j=await call0(o,tries);if(j&&j.ok===false&&j.error==="missing")return{ok:false,notReady:true,error:"Accounts are not open yet. Please wait for Sir Raymart's announcement."};return j}
@@ -96,7 +96,9 @@ $("photo").onchange=async()=>{const f=$("photo").files&&$("photo").files[0],m=$(
  if(!j||!j.ok){m.textContent=(j&&j.error)||"Could not save the photo. Try again.";lab.textContent="Change profile picture";return}
  const me=A.readIdentity(LS)||{};setAvatar(u,me.n);m.className="okmsg";m.textContent="✓ Photo saved."};
 
-$("logout").onclick=async()=>{if(!confirm("Log out on this phone?"))return;const t=A.readToken(LS);A.clearSession(LS);HIST=null;call({action:"acctLogout",token:t}).catch(()=>{});
+let OUTARM=0;
+$("logout").onclick=async()=>{const b=$("logout");if(Date.now()-OUTARM>4000){OUTARM=Date.now();b.textContent="Tap again to log out";setTimeout(()=>{if(Date.now()-OUTARM>=4000)b.textContent="Log out on this phone"},4100);return}
+ OUTARM=0;b.textContent="Log out on this phone";const t=A.readToken(LS);A.clearSession(LS);HIST=null;call({action:"acctLogout",token:t}).catch(()=>{});
  PICK=null;show("vlogin");$("lmsg").textContent=""};
 
 // ---------- start ----------
