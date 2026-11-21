@@ -53,7 +53,8 @@ function env(opts = {}) {
   vm.runInContext(read("Code.gs") + "\n" + read("Code_accounts.gs"), ctx);
   if (!opts.noCodes) vm.runInContext("acctProps_().setProperty('ACCT_CODE_'+acctSecId_('Grade 11','ACADS'),'ACADS7');acctProps_().setProperty('ACCT_CODE_'+acctSecId_('Grade 12','HUMSS'),'HUMSS4');", ctx);
   const post = (d) => ctx.doPost({ postData: { contents: JSON.stringify(d) } });
-  return { ctx, post, sheets, props, cache, files, folders, fetched, logs, before, rootF };
+  const get = (parameter) => ctx.doGet({ parameter: parameter || {} });
+  return { ctx, post, get, sheets, props, cache, files, folders, fetched, logs, before, rootF };
 }
 const JUAN = { grade: "Grade 11", section: "ACADS", name: "Juan Dela Cruz" };
 
@@ -149,6 +150,35 @@ test("accounts: profile photo is private, in its own Drive folder outside the sh
   assert.match(e.post({ action: "acctPhotoSet", token, image: big }).error, /too big/);
 });
 
+test("Integer Duel board photos: only official board players, Drive folder stays private", () => {
+  const e = env();
+  const juanImg = "data:image/jpeg;base64," + Buffer.from("juan-photo").toString("base64");
+  const anaImg = "data:image/png;base64," + Buffer.from("ana-photo").toString("base64");
+  const pedroImg = "data:image/jpeg;base64," + Buffer.from("pedro-secret").toString("base64");
+  const { token: jt } = e.post({ action: "acctSetPin", ...JUAN, code: "ACADS7", pin: "4826" });
+  assert.equal(e.post({ action: "acctPhotoSet", token: jt, image: juanImg }).ok, true);
+  const { token: at } = e.post({ action: "acctSetPin", grade: "Grade 12", section: "HUMSS", name: "Ana Bautista", pin: "5071", code: "HUMSS4" });
+  assert.equal(e.post({ action: "acctPhotoSet", token: at, image: anaImg }).ok, true);
+  e.sheets.Learners.rows.push(["Grade 11", "ACADS", "Reyes", "Pedro"]);
+  const { token: pt } = e.post({ action: "acctSetPin", grade: "Grade 11", section: "ACADS", name: "Pedro Reyes", pin: "8153", code: "ACADS7" });
+  assert.equal(e.post({ action: "acctPhotoSet", token: pt, image: pedroImg }).ok, true);
+  const r = e.get({ action: "duelBoardPhotos" });
+  assert.equal(r.ok, true);
+  const names = (r.photos || []).map((p) => p.n).sort();
+  assert.deepEqual(names, ["Ana Bautista", "Juan Dela Cruz"]);
+  assert.ok(!(r.photos || []).some((p) => p.n === "Pedro Reyes" || (p.data && Buffer.from(p.data, "base64").toString() === "pedro-secret")), "learners not on the official board are never returned");
+  const juan = r.photos.find((p) => p.n === "Juan Dela Cruz");
+  assert.equal(Buffer.from(juan.data, "base64").toString(), "juan-photo");
+  assert.match(juan.mime, /image\/jpeg/);
+  assert.equal(juan.s, "ACADS");
+  assert.match(juan.id, /^u[0-9a-z]+$/);
+  e.files.forEach((f) => assert.equal(f.sharing, "PRIVATE/NONE"));
+  const folder = e.folders[e.files[0].folder];
+  assert.equal(folder.name, "ADM Learner Photos (private)");
+  assert.equal(folder.sharing, "PRIVATE/NONE");
+  assert.equal(folder.parent, "MYDRIVE");
+});
+
 test("accounts: teacher can list and reset a PIN only with the teacher PIN; reset logs the learner out", () => {
   const e = env();
   e.post({ action: "teacherSetPin", pin: "246813", pin2: "246813" });
@@ -213,7 +243,7 @@ test("account page: PIN fields are masked numeric, PIN/token only in POST bodies
   assert.match(js, /method:"POST"/);
   assert.match(js, /fetch\(API_URL\+"\?action=config"/); // the only GET
   assert.match(js, /photoPlan\(im\.naturalWidth,im\.naturalHeight,320\)/); // compressed on the phone
-  assert.match(html, /Only you and Sir Raymart can see your photo/);
+  assert.match(html, /Integer Duel leaderboard if you play/);
 });
 
 test("portal + games use the account name: index locks the pickers, games read only the identity", () => {

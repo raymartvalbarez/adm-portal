@@ -8,8 +8,9 @@
  * the token's hash. Teacher (with the teacher PIN) can list accounts and reset a learner's PIN.
  *
  * Photos (minors' personal data): saved in a PRIVATE Drive folder "ADM Learner Photos (private)" in the teacher's
- * own Drive (not inside the shared outputs folder), never shared, and served only to that learner's session.
- * Never on leaderboards. Old photos are never deleted (the newest one is used).
+ * own Drive (not inside the shared outputs folder) and never link-shared. Served to that learner's session, and as
+ * small thumbnails on the public Integer Duel leaderboard only for learners who appear in official duel results.
+ * Not shown on other game leaderboards. Old photos are never deleted (the newest one is used).
  *
  * Sheet: one NEW tab "Accounts" (created on first use, at the end). No existing tab is renamed or changed.
  * History is read-only: Task Submissions, ADM Quiz Scores (score only, never answers), game score exports and
@@ -244,6 +245,104 @@ function acctPhotoGet_(S){
     var f = DriveApp.getFileById(id), b = f.getBlob();
     return { ok: true, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
   } catch (e) { return { ok: true, none: true }; }
+}
+function duelBoardPid_(n, g, s){
+  var key = norm_(n) + '|' + acctGradeNum_(g) + '|' + norm_(s);
+  var h = 2166136261;
+  for (var i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  var t = (h >>> 0).toString(36);
+  while (t.length < 7) t = '0' + t;
+  return 'u' + t;
+}
+function duelBoardResults_(){
+  var seen = {}, players = [];
+  var read = function(j){
+    var bag = (j && j.entries) || {}, n = 0;
+    Object.keys(bag).forEach(function(k){
+      var r = bag[k];
+      if (k.indexOf('r-') !== 0 || !r || !r.a || !r.b) return;
+      n++;
+      ['a', 'b'].forEach(function(side){
+        var me = r[side];
+        if (!me || !me.n) return;
+        var loose = norm_(me.n) + '|' + acctGradeNum_(me.g);
+        var full = loose + '|' + norm_(me.s);
+        if (seen[full]) return;
+        seen[full] = 1;
+        players.push({ n: String(me.n), g: String(me.g || ''), s: String(me.s || ''), loose: loose, full: full });
+      });
+    });
+    return n;
+  };
+  var first = acctFetchJson_([ACCT_EXPORT + ACCT_DUEL_LEGACY]);
+  read(first[ACCT_EXPORT + ACCT_DUEL_LEGACY]);
+  for (var start = 1; start < 200; start += 5) {
+    var urls = []; for (var i = start; i < start + 5; i++) urls.push(ACCT_EXPORT + ACCT_DUEL_RES + i);
+    var got = acctFetchJson_(urls), stop = false;
+    for (var k = 0; k < urls.length; k++) { if (!read(got[urls[k]])) { stop = true; break; } }
+    if (stop) break;
+  }
+  return players;
+}
+function duelBoardThumb_(fileId){
+  var cache = CacheService.getScriptCache(), ck = 'duelThumb:' + fileId;
+  var hit = cache.get(ck);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  try {
+    var f = DriveApp.getFileById(fileId), b = f.getBlob();
+    var mime = String(b.getContentType() || 'image/jpeg');
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(mime)) return null;
+    var data = Utilities.base64Encode(b.getBytes());
+    if (!data) return null;
+    var thumb = { mime: mime, data: data };
+    if (data.length < 90000) { try { cache.put(ck, JSON.stringify(thumb), 600); } catch (e) {} }
+    return thumb;
+  } catch (e) { return null; }
+}
+/** Public: small profile photos for learners who appear on the official Integer Duel leaderboard only.
+ *  The Drive folder stays private. Learners not in official results are never returned. */
+function duelBoardPhotos_(){
+  var cache = CacheService.getScriptCache(), ck = 'duelBoardPhotos:v1';
+  var hit = cache.get(ck);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  var players = duelBoardResults_();
+  var byFull = {}, byLoose = {};
+  learners_().forEach(function(x){
+    var loose = norm_(x.n) + '|' + acctGradeNum_(x.g);
+    var full = loose + '|' + norm_(x.s);
+    var rec = { L: x };
+    byFull[full] = rec;
+    if (!byLoose[loose]) byLoose[loose] = rec;
+    else byLoose[loose] = { ambig: true };
+  });
+  var sh = ss_().getSheetByName(ACCT_TAB), photoByKey = {};
+  if (sh && sh.getLastRow() >= 2) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, ACCT_HEAD.length).getValues().forEach(function(r){
+      var key = String(r[3] || ''), id = String(r[6] || '');
+      if (key && id) photoByKey[key] = id;
+    });
+  }
+  var photos = [], used = {};
+  players.forEach(function(p){
+    var rec = byFull[p.full];
+    if (!rec) {
+      rec = byLoose[p.loose];
+      if (rec && rec.ambig) rec = null;
+    }
+    if (!rec || !rec.L) return;
+    var L = rec.L, fileId = photoByKey[acctKey_(L.g, L.s, L.n)];
+    if (!fileId || used[fileId]) return;
+    used[fileId] = 1;
+    var thumb = duelBoardThumb_(fileId);
+    if (!thumb) return;
+    photos.push({ n: L.n, g: L.g, s: L.s, id: duelBoardPid_(L.n, L.g, L.s), mime: thumb.mime, data: thumb.data });
+  });
+  var out = { ok: true, photos: photos };
+  try { var s = JSON.stringify(out); if (s.length < 95000) cache.put(ck, s, 180); } catch (e) {}
+  return out;
 }
 function acctLogout_(d){
   var token = String(d.token || '');

@@ -145,6 +145,7 @@ function doGet(e){
   if (p.action === 'nsedCheck') return out_({ exists: nsedDone_(p.name), deadline: nsedDeadline_(), nsedFolder: nsedRoot_().getUrl() });
   if (/^teacher/i.test(String(p.action || ''))) return out_({ ok: false, teacher: true, error: 'Teacher actions are POST only and need the PIN.' });
   if (p.action === 'nsedInfo') return out_({ ok: true, nsedFolder: nsedRoot_().getUrl(), deadline: nsedDeadline_(), now: Date.now() });
+  if (p.action === 'duelBoardPhotos') return out_(typeof duelBoardPhotos_ === 'function' ? duelBoardPhotos_() : { ok: false, missing: true });
   return out_({ ok: true, app: 'ADM Portal' });
 }
 
