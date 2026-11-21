@@ -352,9 +352,29 @@ function teacherAcctReset_(d){
   return r || BUSY_;
 }
 
+function acctSeedSections_(){
+  return [
+    { g: 'Grade 7', s: 'Mabini' },
+    { g: 'Grade 8', s: 'Rizal' },
+    { g: 'Grade 9', s: 'Bonifacio' },
+    { g: 'Grade 10', s: 'Jacinto' }
+  ];
+}
 function acctSections_(){
   var seen = {}, out = [];
-  learners_().forEach(function(x){ var k = norm_(x.g) + '|' + norm_(x.s); if (!seen[k]) { seen[k] = 1; out.push({ g: x.g, s: x.s }); } });
+  function add(x){
+    if (!x || !x.g || !x.s) return;
+    var k = norm_(x.g) + '|' + norm_(x.s);
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push({ g: x.g, s: x.s });
+  }
+  acctSeedSections_().forEach(add);
+  learners_().forEach(add);
+  out.sort(function(a, b){
+    var ga = Number(String(a.g).replace(/\D/g, '')) || 0, gb = Number(String(b.g).replace(/\D/g, '')) || 0;
+    return ga !== gb ? ga - gb : String(a.s).localeCompare(String(b.s));
+  });
   return out;
 }
 /** Teacher only (teacher PIN): current class code of every section. */

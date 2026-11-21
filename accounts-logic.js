@@ -7,6 +7,34 @@
 
   function norm(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
   function gradeNum(g) { return String(g || "").replace(/\D/g, ""); }
+  var LOGIN_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  var SEED_SECTIONS = { "Grade 7": ["Mabini"], "Grade 8": ["Rizal"], "Grade 9": ["Bonifacio"], "Grade 10": ["Jacinto"] };
+  /** Grades always offered on login (7–12), plus any extra grade already on the class list. */
+  function loginGrades(learners) {
+    var seen = {}, out = [];
+    function add(g) {
+      g = String(g || "").trim();
+      if (!g || seen[g]) return;
+      seen[g] = 1; out.push(g);
+    }
+    LOGIN_GRADES.forEach(add);
+    (learners || []).forEach(function (x) { if (x && x.g) add(x.g); });
+    out.sort(function (a, b) { return Number(gradeNum(a) || 0) - Number(gradeNum(b) || 0); });
+    return out;
+  }
+  /** Sections for a grade: seeded JHS sections plus any section on the class list for that grade. */
+  function loginSections(learners, grade) {
+    var g = String(grade || "").trim(), seen = {}, out = [];
+    function add(s) {
+      s = String(s || "").trim();
+      if (!s || seen[s]) return;
+      seen[s] = 1; out.push(s);
+    }
+    (SEED_SECTIONS[g] || []).forEach(add);
+    (learners || []).forEach(function (x) { if (x && String(x.g || "").trim() === g) add(x.s); });
+    out.sort(function (a, b) { return a.localeCompare(b); });
+    return out;
+  }
   function learnerKey(g, s, n) { return norm(g) + "|" + norm(s) + "|" + norm(n); }
   function pinProblem(pin) {
     pin = String(pin == null ? "" : pin);
@@ -89,7 +117,8 @@
       counts: { tasks: tasks.length, quizzes: quizzes.length, games: (h.games || []).length, duels: Number(sum.duels) || list.length }
     };
   }
-  var api = { ID_KEY: ID_KEY, TOK_KEY: TOK_KEY, norm: norm, gradeNum: gradeNum, learnerKey: learnerKey, pinProblem: pinProblem, pinPairProblem: pinPairProblem,
+  var api = { ID_KEY: ID_KEY, TOK_KEY: TOK_KEY, norm: norm, gradeNum: gradeNum, LOGIN_GRADES: LOGIN_GRADES, SEED_SECTIONS: SEED_SECTIONS,
+    loginGrades: loginGrades, loginSections: loginSections, learnerKey: learnerKey, pinProblem: pinProblem, pinPairProblem: pinPairProblem,
     readIdentity: readIdentity, writeSession: writeSession, readToken: readToken, clearSession: clearSession, matchLearner: matchLearner,
     photoPlan: photoPlan, dataUrlBytes: dataUrlBytes, initials: initials, whenLabel: whenLabel, groupHistory: groupHistory };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.ACCT = api;

@@ -218,7 +218,7 @@ test("account page: PIN fields are masked numeric, PIN/token only in POST bodies
 
 test("portal + games use the account name: index locks the pickers, games read only the identity", () => {
   const idx = read("index.html"), app = read("app.js"), idj = read("adm-identity.js"), teacher = read("teacher.html");
-  assert.match(idx, /accounts-logic\.js\?v=20261120a[\s\S]*app\.js\?v=20261120a/);
+  assert.match(idx, /accounts-logic\.js\?v=20261121a[\s\S]*app\.js\?v=20261120a/);
   assert.match(idx, /href="account\.html"/);
   assert.match(app, /lockToAccount\(LS,gi,ss,ns\)/);
   assert.match(idj, /adm_learner/); assert.ok(!/adm_acct_tok/.test(idj), "games never read the session token");
@@ -253,10 +253,14 @@ test("class codes: teacher sees and regenerates codes only with the teacher PIN;
   const no = e.post({ action: "teacherAcctCodes", pin: "000000" }); assert.equal(no.ok, false); assert.ok(!no.codes);
   assert.equal(e.post({ action: "teacherAcctCodeNew", pin: "000000", grade: "Grade 11", section: "ACADS" }).ok, false);
   const list = e.post({ action: "teacherAcctCodes", pin: "246813" });
-  assert.deepEqual(list.codes.map((c) => [c.g, c.s, c.code]), [["Grade 11", "ACADS", ""], ["Grade 12", "HUMSS", ""]]);
+  assert.deepEqual(list.codes.map((c) => [c.g, c.s, c.code]), [
+    ["Grade 7", "Mabini", ""], ["Grade 8", "Rizal", ""], ["Grade 9", "Bonifacio", ""], ["Grade 10", "Jacinto", ""],
+    ["Grade 11", "ACADS", ""], ["Grade 12", "HUMSS", ""]
+  ]);
   const a = e.post({ action: "teacherAcctCodeNew", pin: "246813", grade: "Grade 11", section: "ACADS" });
   assert.match(a.code, /^[A-HJKMNP-Z2-9]{6}$/);
-  assert.equal(e.post({ action: "teacherAcctCodes", pin: "246813" }).codes[0].code, a.code);
+  const after = e.post({ action: "teacherAcctCodes", pin: "246813" });
+  assert.equal(after.codes.find((c) => c.g === "Grade 11" && c.s === "ACADS").code, a.code);
   const b = e.post({ action: "teacherAcctCodeNew", pin: "246813", grade: "Grade 11", section: "ACADS" });
   assert.notEqual(a.code, b.code);
   assert.equal(e.post({ action: "acctSetPin", ...JUAN, pin: "4826", code: a.code }).badCode, true);
@@ -265,4 +269,22 @@ test("class codes: teacher sees and regenerates codes only with the teacher PIN;
   assert.equal(e.post({ action: "acctSetPin", grade: "Grade 12", section: "HUMSS", name: "Ana Bautista", pin: "5071", code: b.code }).noCode, true, "HUMSS has no code yet");
   assert.ok(!/ACADS7|HUMSS4/.test(read("Code_accounts.gs") + read("Code.gs")), "no real codes in the repo");
   assert.ok(!/[?&]code=/.test(read("account.js") + read("teacher.js")), "codes never in a URL");
+});
+
+test("login grades 7–12 and seeded JHS sections appear even with no learners in that grade", () => {
+  const only11 = [{ g: "Grade 11", s: "ACADS", n: "Juan Dela Cruz" }];
+  assert.deepEqual(A.loginGrades([]), ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"]);
+  assert.deepEqual(A.loginGrades(only11), ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"]);
+  assert.deepEqual(A.loginSections([], "Grade 7"), ["Mabini"]);
+  assert.deepEqual(A.loginSections([], "Grade 8"), ["Rizal"]);
+  assert.deepEqual(A.loginSections([], "Grade 9"), ["Bonifacio"]);
+  assert.deepEqual(A.loginSections([], "Grade 10"), ["Jacinto"]);
+  assert.deepEqual(A.loginSections(only11, "Grade 11"), ["ACADS"]);
+  assert.deepEqual(A.loginSections(only11, "Grade 12"), []);
+  const e = env({ noCodes: true });
+  e.post({ action: "teacherSetPin", pin: "246813", pin2: "246813" });
+  const r = e.post({ action: "teacherAcctCodeNew", pin: "246813", grade: "Grade 8", section: "Rizal" });
+  assert.equal(r.ok, true);
+  assert.match(r.code, /^[A-HJKMNP-Z2-9]{6}$/);
+  assert.equal(e.post({ action: "teacherAcctCodeNew", pin: "246813", grade: "Grade 8", section: "NotASection" }).ok, false);
 });

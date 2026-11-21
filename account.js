@@ -20,9 +20,8 @@ function busy(b,on,txt){b.disabled=on;if(txt)b.textContent=txt}
 let LEARNERS=[],PICK=null,HAS_PIN=false,HIST=null,HTAB="tasks";
 
 // ---------- login ----------
-const gnum=g=>String(g||"").replace(/\D/g,"");
-function fillGrades(){const gs=[...new Set(LEARNERS.map(x=>x.g))].sort((a,b)=>gnum(a)-gnum(b));$("lg").innerHTML='<option value="">— Choose grade level —</option>'+gs.map(g=>'<option>'+esc(g)+'</option>').join("")}
-function fillSecs(){const g=$("lg").value,ss=[...new Set(LEARNERS.filter(x=>x.g===g).map(x=>x.s))].sort();
+function fillGrades(){const gs=A.loginGrades(LEARNERS);$("lg").innerHTML='<option value="">— Choose grade level —</option>'+gs.map(g=>'<option>'+esc(g)+'</option>').join("")}
+function fillSecs(){const g=$("lg").value,ss=g?A.loginSections(LEARNERS,g):[];
  $("ls").innerHTML='<option value="">'+(g?"— Choose section —":"— Choose grade level first —")+'</option>'+ss.map(s=>'<option>'+esc(s)+'</option>').join("");$("ls").disabled=!g;if(ss.length===1)$("ls").value=ss[0];fillNames()}
 function fillNames(){const g=$("lg").value,s=$("ls").value,ns=LEARNERS.filter(x=>x.g===g&&x.s===s).sort((a,b)=>(a.l||a.n).localeCompare(b.l||b.n));
  $("ln").innerHTML='<option value="">'+(s?"— Choose your name —":"— Choose section first —")+'</option>'+ns.map(x=>'<option value="'+esc(x.n)+'">'+esc(x.l&&x.f?x.l+", "+x.f:x.n)+'</option>').join("");$("ln").disabled=!s}
