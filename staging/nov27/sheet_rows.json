@@ -1,0 +1,46 @@
+{
+ "quiz_schedule_tab_rows": [
+  [
+   "General Mathematics — Quiz 5 (Nov 27)",
+   "Grade 11",
+   "N",
+   "",
+   "Quiz 5 covering the Nov 23–27 daily tasks. 20 items (10 easy / 6 average / 4 difficult). Opens Friday, Nov 27, 2026 (Manila). One submission per learner. No deadline."
+  ],
+  [
+   "Practical Research 1 — Quiz 5 (Nov 27)",
+   "Grade 11",
+   "N",
+   "",
+   "Quiz 5 covering the Nov 23–27 daily tasks. 20 items (10 easy / 6 average / 4 difficult). Opens Friday, Nov 27, 2026 (Manila). One submission per learner. No deadline."
+  ],
+  [
+   "Practical Research 2 — Quiz 5 (Nov 27)",
+   "Grade 12",
+   "N",
+   "",
+   "Quiz 5 covering the Nov 23–27 daily tasks. 20 items (10 easy / 6 average / 4 difficult). Opens Friday, Nov 27, 2026 (Manila). One submission per learner. No deadline."
+  ],
+  [
+   "Community Engagement, Solidarity and Citizenship (CESC) — Quiz 5 (Nov 27)",
+   "Grade 12",
+   "N",
+   "",
+   "Quiz 5 covering the Nov 23–27 daily tasks. 20 items (10 easy / 6 average / 4 difficult). Opens Friday, Nov 27, 2026 (Manila). One submission per learner. No deadline."
+  ],
+  [
+   "Entrepreneurship — Quiz 5 (Nov 27)",
+   "Grade 12",
+   "N",
+   "",
+   "Quiz 5 covering the Nov 23–27 daily tasks. 20 items (10 easy / 6 average / 4 difficult). Opens Friday, Nov 27, 2026 (Manila). One submission per learner. No deadline."
+  ]
+ ],
+ "quiz_schedule_columns": [
+  "Subject",
+  "Grade",
+  "Open (Y/N)",
+  "Deadline (Manila, yyyy-mm-dd hh:mm)",
+  "Notes"
+ ]
+}

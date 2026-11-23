@@ -170,7 +170,7 @@ test("games section and the tab bar still clears the page", () => {
   assert.match(html, /--tab-clear:48px/);
   assert.match(html, /padding-bottom:calc\(var\(--tab-bar\) \+ var\(--tab-clear\) \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(html, /logic\.js\?v=20261118c/);
-  assert.match(html, /data\.js\?v=20261119b/);
+  assert.match(html, /data\.js\?v=20261123a/);
   assert.match(html, /app\.js\?v=20261120a/);
   assert.equal(app.includes("TDATE"), false);
   assert.match(app, /taskReleaseDate/);
