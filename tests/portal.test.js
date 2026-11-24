@@ -151,18 +151,20 @@ test("games section and the tab bar still clears the page", () => {
   assert.match(gamesSh, /treasure-diver/);
   assert.match(gamesSh, /island-navigator/);
   assert.match(gamesSh, /revert --no-commit/);
-  // Mixed state: Racer, Archer, Diver closed; Island Navigator open (Play); Duel open (separate card).
-  assert.match(html, /Open now: Island Navigator and Integer Duel/);
-  assert.match(html, /Integer Racer, Integer Archer, and Treasure Diver are closed/);
-  assert.match(html, /Island Navigator is 1 try per learner\. Integer Duel has unlimited duels/);
+  // Nov 25: Racer, Archer, Diver open (Play, 1 try); Island Navigator and Duel left as they were (Play).
+  assert.match(html, /Open now: Integer Racer, Integer Archer, Treasure Diver, Island Navigator, and Integer Duel/);
+  assert.match(html, /Integer Racer, Integer Archer, Treasure Diver, and Island Navigator are open \(1 try per learner\)/);
+  assert.doesNotMatch(html, /are closed/);
   assert.doesNotMatch(html, /Games are open today|Each learner gets only 1 try per game|Still 1 try per game/);
-  assert.match(html, /Island Navigator: 1 try per learner, so play carefully! Integer Duel has unlimited duels/);
-  assert.equal((html.match(/▶ Play/g) || []).length, 1);
-  assert.equal((html.match(/🔒 Closed/g) || []).length, 3);
+  assert.match(html, /Integer Racer, Integer Archer, Treasure Diver, and Island Navigator: 1 try per learner, so play carefully! Integer Duel has unlimited duels/);
+  assert.equal((html.match(/▶ Play/g) || []).length, 4);
+  assert.equal((html.match(/🔒 Closed/g) || []).length, 0);
   for (const game of ["integer-racer", "integer-archer", "treasure-diver"]) {
-    assert.doesNotMatch(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?'));
+    assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/' + game + '/\\?v=20261125a"'));
+    assert.match(html, new RegExp('https://raymartvalbarez\\.github\\.io/' + game + '/leaderboard\\.html\\?v=20261125a'));
   }
-  assert.match(html, new RegExp('href="https://raymartvalbarez\\.github\\.io/island-navigator/\\?v=\\d{8}[a-z]"'));
+  assert.match(html, /href="https:\/\/raymartvalbarez\.github\.io\/island-navigator\/\?v=20261118b"/);
+  assert.match(html, /island-navigator\/leaderboard\.html\?v=20261118b/);
   for (const game of ["integer-racer", "integer-archer", "treasure-diver", "island-navigator"]) {
     assert.match(html, new RegExp("https://raymartvalbarez\\.github\\.io/" + game + "/leaderboard\\.html\\?v=\\d{8}[a-z]"));
   }
