@@ -21,9 +21,9 @@ The output must start with `2026-11-25`. If the date is still `2026-11-24`, **st
 | integer-racer | `37471ed2a7a0c536f9a4584a3e955ed6e7f16fd1` | Start a fresh Nov. 25 round: new score namespace, Nov. 25 window and headers, 1 try per learner; keep Nov 18 and earlier scores read-only on the leaderboard. |
 | integer-archer | `fc940dc24aa030cec6014b2bee97f677868b5d13` | (same message) |
 | treasure-diver | `44fc6efc1c967173ecfd8a73f93176ed5bc56e95` | (same message) |
-| adm-portal | _(filled in this same commit; confirm with `git -C /workspace/adm-portal rev-parse HEAD`)_ | Open Integer Racer, Integer Archer, and Treasure Diver on the portal for the Nov 25 round (cache 20261125a). |
+| adm-portal | `19464f98cbdb4864ef4fe074fadde8005263e56c` | Open Integer Racer, Integer Archer, and Treasure Diver on the portal for the Nov 25 round (cache 20261125a). |
 
-Each repo should be exactly one commit ahead of `origin/main`. Confirm before pushing:
+The three game repos should be exactly one commit ahead of `origin/main`. adm-portal should be two commits ahead: `19464f98cbdb4864ef4fe074fadde8005263e56c` (Games section change and first draft of this playbook) plus the follow-up commit that records SHAs in this file. Push `HEAD` in each repo (plain `git push origin HEAD`), not a mid-history SHA. Confirm before pushing:
 
 ```bash
 for r in integer-racer integer-archer treasure-diver adm-portal; do
